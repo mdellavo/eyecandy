@@ -67,7 +67,7 @@ public class MainActivity
     @Override
     public View makeView() {
         ImageView view  = new ImageView(this);
-        view.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        view.setScaleType(ImageView.ScaleType.CENTER_CROP);
         view.setLayoutParams(new ImageSwitcher.LayoutParams(ImageSwitcher.LayoutParams.FILL_PARENT, ImageSwitcher.LayoutParams.FILL_PARENT));
         return view;
     }
