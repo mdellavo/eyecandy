@@ -13,6 +13,10 @@ public class Tasks {
         new FetchImageTask(context, listener).execute(image);
     }
 
+    static void nextImage(Context context, NextImageListener listener) {
+        new NextImageTask(context, listener).execute();
+    }
+    
     static void markImageShown(Context context, Image image) {
         new MarkImageShownTask(context).execute(image);
     }

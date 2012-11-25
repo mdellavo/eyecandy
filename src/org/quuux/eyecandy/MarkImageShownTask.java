@@ -22,6 +22,5 @@ class MarkImageShownTask extends AsyncTask<Image, Void, Image> {
         db.incShown(images[0]);
         return images[0];
     }
-        
 }
 
