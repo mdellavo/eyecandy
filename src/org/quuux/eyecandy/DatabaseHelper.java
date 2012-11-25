@@ -66,7 +66,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             for(Image image: images) {
                 
-                inserter.prepareForReplace();
+                inserter.prepareForInsert();
 
                 inserter.bind(source, image.getSource().toString());
                 inserter.bind(url, image.getUrl());
@@ -94,7 +94,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public Image nextImage() {
         SQLiteDatabase db = getReadableDatabase();  
-        Cursor cursor = db.rawQuery("SELECT * FROM " + IMAGE_TABLE_NAME + " ORDER BY times_shown ASC, RANDOM();", null);
+        Cursor cursor = db.rawQuery("SELECT * FROM " + IMAGE_TABLE_NAME + " ORDER BY times_shown, RANDOM();", null);
 
         if (!cursor.moveToFirst())
             return null;
@@ -109,14 +109,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public void markFetched(Image image) {
         SQLiteDatabase db = getWritableDatabase();  
-        db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET status = ? WHERE url = ?",
+        db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET status = ? WHERE url = ?;",
                    new String[] { Image.Status.FETCHED.toString(), image.getUrl() });
         db.close();
     }
 
     public void incShown(Image image) {
         SQLiteDatabase db = getWritableDatabase();  
-        db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET times_shown = times_shown + 1 WHERE url = ?",
+        db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET times_shown = times_shown + 1 WHERE url = ?;",
                    new String[] { image.getUrl() });
         db.close();
     }

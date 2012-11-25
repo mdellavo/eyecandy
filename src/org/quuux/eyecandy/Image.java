@@ -4,6 +4,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 
+import java.io.File;
+
 import org.json.JSONObject;
 
 public class Image {
@@ -89,6 +91,7 @@ public class Image {
         return timesShown;
     }
 
+    // FIXME needs to be hash of url
     public String getCachedImagePath(Context context) {
         String path = context.getExternalCacheDir().getPath();
         return path + "/" + url.substring(url.lastIndexOf('/') + 1);
@@ -97,5 +100,8 @@ public class Image {
     public Uri getCachedImageUri(Context context) {
         return Uri.parse("file://" + getCachedImagePath(context));
     }
+    public boolean isCached(Context context) {
+        return new File(getCachedImagePath(context)).exists();
+    }    
 }
 
