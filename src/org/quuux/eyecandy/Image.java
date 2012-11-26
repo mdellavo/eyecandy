@@ -98,8 +98,13 @@ public class Image {
         try {
             MessageDigest message_digest = MessageDigest.getInstance("MD5");
             message_digest.update(url.getBytes());
-            String hashed = new String(message_digest.digest());
-            return context.getExternalCacheDir().getPath() + "/" + hashed;
+
+            byte digest[] = message_digest.digest();
+            StringBuffer buf = new StringBuffer();
+            for (int i=0; i<digest.length; i++)
+                buf.append(Integer.toHexString(0xFF & digest[i]));
+
+            return context.getExternalCacheDir().getPath() + "/" + buf.toString() + ".jpg";
         } catch(Exception e) {
             return null;
         }

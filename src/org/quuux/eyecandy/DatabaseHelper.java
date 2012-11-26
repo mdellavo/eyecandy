@@ -149,4 +149,5 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                    new String[] { image.getUrl() });
         db.close();
     }
+
 }
