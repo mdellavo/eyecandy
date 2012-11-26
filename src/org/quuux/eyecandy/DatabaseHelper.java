@@ -13,9 +13,10 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
 
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     private static final String DATABASE_NAME = "eyecandy.db";
+
     private static final String IMAGE_TABLE_NAME = "images";
 
     private static final String IMAGE_TABLE_CREATE = 
@@ -32,6 +33,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String IMAGE_TABLE_DROP = "DROP TABLE IF EXISTS " + IMAGE_TABLE_NAME + ";";
 
+    private static final String SCRAPE_TABLE_NAME = "scrapes";
+
+    private static final String SCRAPE_TABLE_CREATE = 
+        "CREATE TABLE " + SCRAPE_TABLE_NAME + " (" + 
+        "_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+        "url TEXT UNIQUE," + 
+        "last_scrape INTEGER," + 
+        "created_on INTEGER," + 
+        "times_scraped INTEGER"  + 
+        ");";
+
+    private static final String SCRAPE_TABLE_DROP = "DROP TABLE IF EXISTS " + SCRAPE_TABLE_NAME + ";";
+
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
@@ -39,20 +53,24 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(IMAGE_TABLE_CREATE);
+        db.execSQL(SCRAPE_TABLE_CREATE);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL(IMAGE_TABLE_DROP);
+        db.execSQL(SCRAPE_TABLE_DROP);
         onCreate(db);
     }
 
     public boolean imageExists(SQLiteDatabase db, Image image) {
         Cursor cursor = db.rawQuery("SELECT 1 FROM " + IMAGE_TABLE_NAME + " WHERE url = ?;", new String[] { image.getUrl() });
-        return cursor.moveToFirst();
+        boolean rv = cursor.moveToFirst();
+        cursor.close();
+        return rv;
     }
 
-    public void syncImages(List<Image> images) {
+    synchronized public void syncImages(List<Image> images) {
 
         SQLiteDatabase db = getWritableDatabase();        
         InsertHelper inserter = new InsertHelper(db, IMAGE_TABLE_NAME);
@@ -111,6 +129,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         Image rv = Image.from(cursor);
 
+        cursor.close();
         db.close();
 
         return rv;

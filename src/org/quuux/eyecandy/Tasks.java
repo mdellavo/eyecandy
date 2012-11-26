@@ -5,8 +5,14 @@ import android.net.Uri;
 
 public class Tasks {
 
+    static void scrapeReddit(Context context, String subreddit, ScrapeCompleteListener listener) {
+        new ScrapeRedditTask(context, listener).execute(subreddit);
+    }
+
     static void scrapeReddit(Context context, String subreddits[], ScrapeCompleteListener listener) {
-        new ScrapeRedditTask(context, listener).execute(subreddits);
+        for(String subreddit : subreddits) {
+            scrapeReddit(context, subreddit, listener);
+        }
     }
 
     static void fetchImage(Context context, Image image, FetchCompleteListener listener) {

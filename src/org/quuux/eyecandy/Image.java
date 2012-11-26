@@ -8,6 +8,8 @@ import java.io.File;
 
 import org.json.JSONObject;
 
+import java.security.MessageDigest;
+
 public class Image {
 
     public enum Source {
@@ -93,8 +95,14 @@ public class Image {
 
     // FIXME needs to be hash of url
     public String getCachedImagePath(Context context) {
-        String path = context.getExternalCacheDir().getPath();
-        return path + "/" + url.substring(url.lastIndexOf('/') + 1);
+        try {
+            MessageDigest message_digest = MessageDigest.getInstance("MD5");
+            message_digest.update(url.getBytes());
+            String hashed = new String(message_digest.digest());
+            return context.getExternalCacheDir().getPath() + "/" + hashed;
+        } catch(Exception e) {
+            return null;
+        }
     }
 
     public Uri getCachedImageUri(Context context) {

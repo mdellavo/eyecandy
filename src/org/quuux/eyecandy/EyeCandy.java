@@ -124,6 +124,7 @@ public class EyeCandy
         mImage.setInAnimation(AnimationUtils.loadAnimation(this.context, android.R.anim.fade_in));
         mImage.setOutAnimation(AnimationUtils.loadAnimation(this.context, android.R.anim.fade_out));
 
+        flipImage();
         Tasks.scrapeReddit(this.context, SUBREDDITS, this);
     }
 
@@ -147,10 +148,14 @@ public class EyeCandy
 
     public void onScrapeComplete(int numScraped) {
         Log.d(TAG, "scrape complete " + numScraped);
-        flipImage();
     }
 
     public void nextImage(Image image) {
+        if (image == null) {
+            Log.d(TAG, "no next image!");
+            return;
+        }
+
         Log.d(TAG, "flipping to " + image + ", shown " + image.getTimesShown() + " times");
             
         if (image.isCached(this.context)) {

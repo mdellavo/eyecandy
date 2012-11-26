@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import org.json.JSONObject;
 import org.json.JSONArray;
 
-class ScrapeRedditTask extends AsyncTask<String[], Integer, Integer> {
+class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
     private static final String TAG = "ScrapeRedditTask";
 
     private static final String FORMAT = "http://www.reddit.com/r/%s.json?limit=100";    
@@ -55,64 +55,61 @@ class ScrapeRedditTask extends AsyncTask<String[], Integer, Integer> {
     }
 
     @Override
-    protected Integer doInBackground(String[]... uris) {
-
+    protected Integer doInBackground(String... uris) {
+        String uri = uris[0];
         Integer rv = new Integer(-1);
-
-        for (String uri : uris[0]) {
-            try { 
-                URL url = new URL(String.format(FORMAT, uri));
+        try { 
+            URL url = new URL(String.format(FORMAT, uri));
                 
-                Log.d(TAG, "Fetching " + url);
+            Log.d(TAG, "Fetching " + url);
            
-                URLConnection conn = url.openConnection();
-                conn.connect();
+            URLConnection conn = url.openConnection();
+            conn.connect();
         
-                JSONObject json = fetch(conn.getInputStream());
-                if (json == null) {
-                    return null;
-                }
-            
-                JSONObject data = json.optJSONObject("data");
-                if (data == null) {
-                    Log.e(TAG, "json doesnt have data property: " + json);
-                    return null;
-                }
-
-                JSONArray children = data.optJSONArray("children");
-                if (children == null) {
-                    Log.e(TAG, "data doesnt have children property: " + json);
-                    return null;
-                }
-            
-                List images = new ArrayList<Image>();
-
-                for(int i=0; i< children.length(); i++) {
-                    JSONObject image_container = children.optJSONObject(i);
-                    JSONObject image_json = image_container.optJSONObject("data");
-
-                    if (image_json == null) {
-                        Log.e(TAG, "image container does not have dat property: " + image_container);
-                    }
-
-                    Image image = Image.fromReddit(image_json);
-
-                    if (image != null) {
-                        Log.d(TAG, "scraped image " + image.getUrl());
-                        images.add(image);
-                    }
-                }
-            
-                Log.d(TAG, "Found " + images.size() + " images");
-            
-                DatabaseHelper db = new DatabaseHelper((Context)mContext.get());
-                db.syncImages(images);
-
-                rv = new Integer(images.size());
-
-            } catch (Exception e) {
-                Log.e(TAG, "Error scraping " + uri, e);
+            JSONObject json = fetch(conn.getInputStream());
+            if (json == null) {
+                return null;
             }
+            
+            JSONObject data = json.optJSONObject("data");
+            if (data == null) {
+                Log.e(TAG, "json doesnt have data property: " + json);
+                return null;
+            }
+
+            JSONArray children = data.optJSONArray("children");
+            if (children == null) {
+                Log.e(TAG, "data doesnt have children property: " + json);
+                return null;
+            }
+            
+            List images = new ArrayList<Image>();
+
+            for(int i=0; i< children.length(); i++) {
+                JSONObject image_container = children.optJSONObject(i);
+                JSONObject image_json = image_container.optJSONObject("data");
+
+                if (image_json == null) {
+                    Log.e(TAG, "image container does not have dat property: " + image_container);
+                }
+
+                Image image = Image.fromReddit(image_json);
+
+                if (image != null) {
+                    Log.d(TAG, "scraped image " + image.getUrl());
+                    images.add(image);
+                }
+            }
+            
+            Log.d(TAG, "Found " + images.size() + " images");
+            
+            DatabaseHelper db = new DatabaseHelper((Context)mContext.get());
+            db.syncImages(images);
+
+            rv = new Integer(images.size());
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error scraping " + uri, e);
         }
 
         return rv;
