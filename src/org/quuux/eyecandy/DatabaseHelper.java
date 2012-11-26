@@ -47,6 +47,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+    public boolean imageExists(SQLiteDatabase db, Image image) {
+        Cursor cursor = db.rawQuery("SELECT 1 FROM " + IMAGE_TABLE_NAME + " WHERE url = ?;", new String[] { image.getUrl() });
+        return cursor.moveToFirst();
+    }
+
     public void syncImages(List<Image> images) {
 
         SQLiteDatabase db = getWritableDatabase();        
@@ -66,6 +71,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             for(Image image: images) {
                 
+                if (imageExists(db, image)) {
+                    Log.d(TAG, "Image already exists " + image);
+                    continue;
+                }
+
                 inserter.prepareForInsert();
 
                 inserter.bind(source, image.getSource().toString());

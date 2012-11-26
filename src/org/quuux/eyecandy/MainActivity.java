@@ -10,6 +10,7 @@ import android.view.WindowManager;
 public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
+    private static final int INTERVAL = 5 * 1000;
 
     protected EyeCandy eyeCandy;
 
@@ -24,7 +25,7 @@ public class MainActivity extends Activity {
 
         setContentView(R.layout.main);
 
-        eyeCandy = new EyeCandy(this);
+        eyeCandy = new EyeCandy(this, INTERVAL);
         eyeCandy.attach((ImageSwitcher)findViewById(R.id.image));
     }
 

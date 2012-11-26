@@ -7,6 +7,7 @@ import android.widget.ImageSwitcher;
 public class EyeCandyDream extends DreamService {
 
     private static final String TAG = "EyeCandyDream";
+    private static final int INTERVAL = 15 * 1000;
 
     protected EyeCandy eyeCandy;
 
@@ -18,7 +19,7 @@ public class EyeCandyDream extends DreamService {
         setFullscreen(true);
         setContentView(R.layout.main);
 
-        eyeCandy = new EyeCandy(this);
+        eyeCandy = new EyeCandy(this, INTERVAL);
         eyeCandy.attach((ImageSwitcher)findViewById(R.id.image));
     }
 
