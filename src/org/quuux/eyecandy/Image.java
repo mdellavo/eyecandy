@@ -113,6 +113,7 @@ public class Image {
     public Uri getCachedImageUri(Context context) {
         return Uri.parse("file://" + getCachedImagePath(context));
     }
+
     public boolean isCached(Context context) {
         return new File(getCachedImagePath(context)).exists();
     }    

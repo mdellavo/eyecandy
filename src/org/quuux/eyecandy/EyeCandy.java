@@ -182,8 +182,11 @@ public class EyeCandy
     }
 
     public void showImage(Image image) {
-        mImage.setImageURI(image.getCachedImageUri(this.context));
-        Tasks.markImageShown(this.context, image);
+
+        if (image != null) {
+            mImage.setImageURI(image.getCachedImageUri(this.context));
+            Tasks.markImageShown(this.context, image);
+        }
 
         mHandler.removeCallbacks(mImageFlipper);
         mHandler.postDelayed(mImageFlipper, interval);

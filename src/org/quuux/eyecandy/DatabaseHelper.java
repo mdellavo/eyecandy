@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
 
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 5;
 
     private static final String DATABASE_NAME = "eyecandy.db";
 
@@ -21,10 +21,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String IMAGE_TABLE_CREATE = 
         "CREATE TABLE " + IMAGE_TABLE_NAME + " (" + 
-        "_id INTEGER PRIMARY KEY AUTOINCREMENT," +
+        "url TEXT PRIMARY KEY," + 
         "source TEXT," +
         "source_url TEXT," + 
-        "url TEXT UNIQUE," + 
         "title TEXT," + 
         "status TEXT," + 
         "created_on INTEGER," + 
@@ -37,14 +36,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String SCRAPE_TABLE_CREATE = 
         "CREATE TABLE " + SCRAPE_TABLE_NAME + " (" + 
-        "_id INTEGER PRIMARY KEY AUTOINCREMENT," +
-        "url TEXT UNIQUE," + 
-        "last_scrape INTEGER," + 
-        "created_on INTEGER," + 
-        "times_scraped INTEGER"  + 
+        "url TEXT PRIMARY KEY," + 
+        "last_scrape INTEGER" + 
         ");";
 
     private static final String SCRAPE_TABLE_DROP = "DROP TABLE IF EXISTS " + SCRAPE_TABLE_NAME + ";";
+
+    private static final String HISTORY_TABLE_NAME = "history";
+
+    private static final String HISTORY_TABLE_CREATE = 
+        "CREATE TABLE " + HISTORY_TABLE_NAME + " (" + 
+        "timestamp INTEGER PRIMARY KEY," + 
+        "url TEXT" + 
+        ");";
+
+    private static final String HISTORY_TABLE_DROP = "DROP TABLE IF EXISTS " + HISTORY_TABLE_NAME + ";";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -54,12 +60,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(IMAGE_TABLE_CREATE);
         db.execSQL(SCRAPE_TABLE_CREATE);
+        db.execSQL(HISTORY_TABLE_CREATE);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL(IMAGE_TABLE_DROP);
         db.execSQL(SCRAPE_TABLE_DROP);
+        db.execSQL(HISTORY_TABLE_DROP);
         onCreate(db);
     }
 
@@ -150,4 +158,50 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
+    public long lastSraped(String url) {
+        SQLiteDatabase db = getReadableDatabase();  
+        Cursor cursor = db.rawQuery("SELECT last_scrape FROM " + SCRAPE_TABLE_NAME + " WHERE url = ?;", new String[] { url });
+
+        if (!cursor.moveToFirst())
+            return 0;
+
+        int last_scraped = Utils.getInt(cursor, "last_scraped");
+
+        cursor.close();
+        db.close();
+
+        return last_scraped;    
+    }
+
+    public void markScrape(String scrapedUrl) {
+
+        SQLiteDatabase db = getWritableDatabase();        
+        InsertHelper inserter = new InsertHelper(db, SCRAPE_TABLE_NAME);
+  
+        int url = inserter.getColumnIndex("url");
+        int last_scrape = inserter.getColumnIndex("last_scrape");
+
+        long now = System.currentTimeMillis();
+
+        db.beginTransaction();
+        try {
+            inserter.prepareForReplace();
+
+            inserter.bind(url, scrapedUrl);
+            inserter.bind(last_scrape, now);
+                
+            inserter.execute();
+
+            db.setTransactionSuccessful();
+            Log.d(TAG, "marked scrape " + scrapedUrl);
+            
+        } catch(Exception e) {
+            Log.e(TAG, "Error marking scrape", e);
+        }
+
+        db.endTransaction();
+
+        inserter.close();            
+        db.close();
+    }
 }
