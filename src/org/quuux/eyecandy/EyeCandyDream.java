@@ -3,6 +3,7 @@ package org.quuux.eyecandy;
 import android.service.dreams.DreamService;
 import android.util.Log;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 public class EyeCandyDream extends DreamService {
 
@@ -19,8 +20,9 @@ public class EyeCandyDream extends DreamService {
         setFullscreen(true);
         setContentView(R.layout.main);
 
-        eyeCandy = new EyeCandy(this, INTERVAL);
-        eyeCandy.attach((ImageView)findViewById(R.id.front),
+        eyeCandy = new EyeCandy(this, INTERVAL); 
+        eyeCandy.attach((TextView)findViewById(R.id.label), 
+                        (ImageView)findViewById(R.id.front),
                         (ImageView)findViewById(R.id.back));
     }
 

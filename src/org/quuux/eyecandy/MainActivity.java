@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -26,7 +27,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
 
         eyeCandy = new EyeCandy(this, INTERVAL);
-        eyeCandy.attach((ImageView)findViewById(R.id.front),
+        eyeCandy.attach((TextView)findViewById(R.id.label), 
+                        (ImageView)findViewById(R.id.front),
                         (ImageView)findViewById(R.id.back));
     }
 

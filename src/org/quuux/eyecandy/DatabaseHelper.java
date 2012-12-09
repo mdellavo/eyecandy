@@ -128,7 +128,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
     }
 
-    public Image nextImage() {
+    synchronized public Image nextImage() {
         SQLiteDatabase db = getReadableDatabase();  
         Cursor cursor = db.rawQuery("SELECT * FROM " + IMAGE_TABLE_NAME + " ORDER BY times_shown, RANDOM();", null);
 
@@ -144,21 +144,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
 
-    public void markFetched(Image image) {
+    synchronized public void markFetched(Image image) {
         SQLiteDatabase db = getWritableDatabase();  
         db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET status = ? WHERE url = ?;",
                    new String[] { Image.Status.FETCHED.toString(), image.getUrl() });
         db.close();
     }
 
-    public void incShown(Image image) {
+    synchronized public void incShown(Image image) {
         SQLiteDatabase db = getWritableDatabase();  
         db.execSQL("UPDATE " + IMAGE_TABLE_NAME + " SET times_shown = times_shown + 1 WHERE url = ?;",
                    new String[] { image.getUrl() });
         db.close();
     }
-
-    public long lastSraped(String url) {
+    
+    synchronized public long lastSraped(String url) {
         SQLiteDatabase db = getReadableDatabase();  
         Cursor cursor = db.rawQuery("SELECT last_scrape FROM " + SCRAPE_TABLE_NAME + " WHERE url = ?;", new String[] { url });
 
@@ -172,8 +172,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         return last_scraped;    
     }
-
-    public void markScrape(String scrapedUrl) {
+    
+    synchronized public void markScrape(String scrapedUrl) {
 
         SQLiteDatabase db = getWritableDatabase();        
         InsertHelper inserter = new InsertHelper(db, SCRAPE_TABLE_NAME);

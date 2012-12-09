@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.MotionEvent;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.view.animation.AnimationUtils;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
@@ -20,6 +21,8 @@ import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.AnimatorListenerAdapter;
+
+import java.util.Random;
 
 public class EyeCandy
     implements View.OnTouchListener,
@@ -77,12 +80,15 @@ public class EyeCandy
         //"foodporn"
     };
 
+    protected TextView mLabel;
     protected ImageView mImageFront, mImageBack;
     protected Handler mHandler;
     protected Context context;
     protected int interval;
     protected int tick = 0;
     protected Animator mCurrentAnimator;
+
+    protected Random mRandom = new Random();
 
     protected Runnable mImageFlipper = new Runnable() {
             @Override
@@ -102,6 +108,8 @@ public class EyeCandy
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) 
             {
                 Log.d(TAG, "fling: e1=" + e1 +", e2=" + e2 + ", velocityX=" + velocityX + "velocityY=" + velocityY);
+                flipImage();
+                
                 return super.onFling(e1, e2, velocityX, velocityY);
             }
 
@@ -113,7 +121,7 @@ public class EyeCandy
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
                 Log.d(TAG, "tap: " + e);
-                flipImage();
+                showLabel();
                 return true;
             }
         };
@@ -133,14 +141,15 @@ public class EyeCandy
         return image;
     }
 
-    public void attach(ImageView front, ImageView back) {
+    public void attach(TextView label, ImageView front, ImageView back) {
         mHandler = new Handler();
-        
+                                                
+        mLabel = label;
         mImageFront = attach(front);
         mImageBack = attach(back);
 
         flipImage();
-        //Tasks.scrapeReddit(this.context, SUBREDDITS, this);
+        Tasks.scrapeReddit(this.context, SUBREDDITS, this);
     }
 
     public boolean onTouch(View view, MotionEvent event)
@@ -210,29 +219,40 @@ public class EyeCandy
         final Rect startBounds = new Rect();
         final Point globalOffset = new Point();            
 
+        float startScale = randomRange(1f, 2f);
+        float finalScale = randomRange(1f, 2f);
+ 
+        Log.d(TAG, "scaling from " + startScale + " -> " + finalScale);
+
         image.getGlobalVisibleRect(startBounds, globalOffset);
         Log.d(TAG, "start bounds = " + startBounds);
+        Log.d(TAG, "global offset = " + globalOffset);
 
         startBounds.offset(-globalOffset.x, -globalOffset.y);
         Log.d(TAG, "localized start bounds = " + startBounds);
         
         final Rect finalBounds = new Rect(startBounds);
-        finalBounds.offset(-100, -100);
+        int finalOffsetX = randomInt(-startBounds.width() / 4, startBounds.width() / 4);
+        int finalOffsetY = randomInt(-startBounds.height() / 4, startBounds.height() / 4);
+
+        Log.d(TAG, "offsetting image " + finalOffsetX + ", " + finalOffsetY);
+ 
+        finalBounds.offset(finalOffsetX, finalOffsetY);
         Log.d(TAG, "final bounds = " + finalBounds);
 
         AnimatorSet set = new AnimatorSet();
         set
-            // .play(ObjectAnimator.ofFloat(image, View.X,startBounds.left, finalBounds.left))
-            // .with(ObjectAnimator.ofFloat(image, View.Y, startBounds.top, finalBounds.top))
-            .play(ObjectAnimator.ofFloat(image, View.SCALE_X, 1f, 2f))
-            .with(ObjectAnimator.ofFloat(image, View.SCALE_Y, 1f, 2f));
-        set.setDuration(interval);
-        set.setInterpolator(new DecelerateInterpolator());
+            .play(ObjectAnimator.ofFloat(image, View.SCALE_X, startScale, finalScale))
+            .with(ObjectAnimator.ofFloat(image, View.SCALE_Y, startScale, finalScale))
+            .with(ObjectAnimator.ofFloat(image, View.X,startBounds.left, finalBounds.left))
+            .with(ObjectAnimator.ofFloat(image, View.Y, startBounds.top, finalBounds.top));
+
+        set.setDuration(2 * interval);
+        //set.setInterpolator(new DecelerateInterpolator());
         set.addListener(new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                 }
-                
                 @Override
                 public void onAnimationCancel(Animator animation) {
                 }
@@ -241,23 +261,11 @@ public class EyeCandy
         set.start();    
     }
 
-    public void fadeImage(final ImageView front, final ImageView back) {
+     public void fadeImage(final ImageView front, final ImageView back) {
         front.bringToFront();
+        fade(front, 1.0f, 0.0f, 1000, null).start();
         back.setAlpha(1f);
-
-        Animator animator = ObjectAnimator.ofFloat(front, "alpha", 1.0f, 0.0f);
-        animator.setDuration(1000);
-        animator.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                }
-                
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                }
-            });
-        animator.start();   
-    }
+     }
 
     public void swapImages(ImageView front, ImageView back) {
         ImageView tmp = front;
@@ -265,6 +273,31 @@ public class EyeCandy
         mImageBack = tmp;
     }
 
+    public Animator fade(View view, float start, float end, long duration, AnimatorListenerAdapter listener) {
+        Animator animator = ObjectAnimator.ofFloat(view, "alpha", start, end);
+        animator.setDuration(duration);
+        if (listener != null) {
+            animator.addListener(listener);
+        }
+        return animator;
+    }
+
+    public void showLabel() {
+        mLabel.bringToFront();
+
+        fade(mLabel, 0.0f, 1.0f, 1000, new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    fade(mLabel, 1.0f, 0.0f, 2000, null).start();
+                }
+                
+                @Override
+                public void onAnimationCancel(Animator animation) {
+                    fade(mLabel, 1.0f, 0.0f, 2000, null).start();
+                }
+            }).start();
+    }
+    
     public void showImage(Image image, Bitmap sampled) {
 
         // At each tick:
@@ -273,6 +306,9 @@ public class EyeCandy
         // swap front and back 
 
         if (image != null && sampled != null) {
+
+            Log.d(TAG, "showing image " + image.getTitle());
+
             if (tick > 0) {
                 mImageBack.setImageBitmap(sampled);
                 fadeImage(mImageFront, mImageBack);
@@ -283,6 +319,9 @@ public class EyeCandy
             }
 
             swapImages(mImageFront, mImageBack);
+ 
+            mLabel.setText(image.getTitle());
+            showLabel();
 
             tick++;
 
@@ -291,5 +330,13 @@ public class EyeCandy
 
         mHandler.removeCallbacks(mImageFlipper);
         mHandler.postDelayed(mImageFlipper, interval);
+    }
+
+    public float randomRange(float min, float max) {
+        return min + ((max-min) * mRandom.nextFloat());
+    }
+
+    public int randomInt(int min, int max) {
+        return min + mRandom.nextInt(max-min);
     }
 }
