@@ -2,7 +2,7 @@ package org.quuux.eyecandy;
 
 import android.service.dreams.DreamService;
 import android.util.Log;
-import android.widget.ImageSwitcher;
+import android.widget.ImageView;
 
 public class EyeCandyDream extends DreamService {
 
@@ -20,7 +20,8 @@ public class EyeCandyDream extends DreamService {
         setContentView(R.layout.main);
 
         eyeCandy = new EyeCandy(this, INTERVAL);
-        eyeCandy.attach((ImageSwitcher)findViewById(R.id.image));
+        eyeCandy.attach((ImageView)findViewById(R.id.front),
+                        (ImageView)findViewById(R.id.back));
     }
 
     @Override

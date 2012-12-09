@@ -3,7 +3,7 @@ package org.quuux.eyecandy;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.ImageSwitcher;
+import android.widget.ImageView;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -26,7 +26,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
 
         eyeCandy = new EyeCandy(this, INTERVAL);
-        eyeCandy.attach((ImageSwitcher)findViewById(R.id.image));
+        eyeCandy.attach((ImageView)findViewById(R.id.front),
+                        (ImageView)findViewById(R.id.back));
     }
 
     @Override

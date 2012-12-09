@@ -6,70 +6,84 @@ import android.util.Log;
 import android.view.View;
 import android.view.MotionEvent;
 import android.widget.ImageView;
-import android.widget.ViewSwitcher;
-import android.widget.ImageSwitcher;
 import android.view.animation.AnimationUtils;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
+import android.view.animation.DecelerateInterpolator;
+import android.graphics.Bitmap;
+import android.graphics.Rect;
+import android.graphics.Point;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.TransitionDrawable;
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.AnimatorListenerAdapter;
 
 public class EyeCandy
-
-    implements View.OnTouchListener, ViewSwitcher.ViewFactory, FetchCompleteListener, ScrapeCompleteListener, NextImageListener {
+    implements View.OnTouchListener,
+               FetchCompleteListener,
+               ScrapeCompleteListener,
+               NextImageListener, 
+               SampleCompleteListener {
  
     private static final String TAG = "EyeCandyBase";
     private static final String SUBREDDITS[] = { 
         "earthporn",
         "villageporn",
         "cityporn",
-        "spaceporn",
-        "waterporn",
-        "abandonedporn",
-        "animalporn",
-        "humanporn",
-        "botanicalporn",
-        "adrenalineporn",
-        "destructionporn",
-        "movieposterporn",
-        "albumartporn",
-        "machineporn",
-        //"newsporn",
-        "geekporn",
-        "bookporn",
-        //"mapporn",
-        "adporn",
-        "designporn",
-        "roomporn",
-        //"militaryporn",
-        //"historyporn",
-        //"quotesporn",
-        "skyporn",
-        "fireporn",
-        "infrastructureporn",
-        "macroporn",
-        "instrumentporn",
-        "climbingporn",
-        "architectureporn",
-        "artporn",
-        "cemeteryporn",
-        //"carporn",
-        "fractalporn",
-        "exposureporn",
-        //"gunporn",
-        //"culinaryporn",
-        "dessertporn",
-        "agricultureporn",
-        "boatporn",
+         "spaceporn",
+         "waterporn",
+         "abandonedporn",
+         "animalporn",
+         "humanporn",
+         "botanicalporn",
+         "adrenalineporn",
+         "destructionporn",
+         "movieposterporn",
+         "albumartporn",
+         "machineporn",
+         //"newsporn",
+         "geekporn",
+         "bookporn",
+         //"mapporn",
+         "adporn",
+         "designporn",
+         "roomporn",
+         //"militaryporn",
+         //"historyporn",
+         //"quotesporn",
+         "skyporn",
+         "fireporn",
+         "infrastructureporn",
+         "macroporn",
+         "instrumentporn",
+         "climbingporn",
+         "architectureporn",
+         "artporn",
+         "cemeteryporn",
+         //"carporn",
+         "fractalporn",
+         "exposureporn",
+         //"gunporn",
+         //"culinaryporn",
+         "dessertporn",
+         "agricultureporn",
+         "boatporn",
         "geologyporn",
         "futureporn",
         "winterporn",
         //"foodporn"
     };
 
-    protected ImageSwitcher mImage;
+    protected ImageView mImageFront, mImageBack;
     protected Handler mHandler;
     protected Context context;
     protected int interval;
-    
+    protected int tick = 0;
+    protected Animator mCurrentAnimator;
+
     protected Runnable mImageFlipper = new Runnable() {
             @Override
             public void run() {
@@ -112,20 +126,21 @@ public class EyeCandy
 
         mGestureDetector = new GestureDetector(this.context, mGestureListener, mHandler);
     }
-    
-    public void attach(ImageSwitcher image) {
+
+    public ImageView attach(ImageView image) {
+        image.setClickable(true);
+        image.setOnTouchListener(this);
+        return image;
+    }
+
+    public void attach(ImageView front, ImageView back) {
         mHandler = new Handler();
         
-        mImage = image;
-        mImage.setClickable(true);
-        mImage.setOnTouchListener(this);
-        
-        mImage.setFactory(this);
-        mImage.setInAnimation(AnimationUtils.loadAnimation(this.context, android.R.anim.fade_in));
-        mImage.setOutAnimation(AnimationUtils.loadAnimation(this.context, android.R.anim.fade_out));
+        mImageFront = attach(front);
+        mImageBack = attach(back);
 
         flipImage();
-        Tasks.scrapeReddit(this.context, SUBREDDITS, this);
+        //Tasks.scrapeReddit(this.context, SUBREDDITS, this);
     }
 
     public boolean onTouch(View view, MotionEvent event)
@@ -133,17 +148,21 @@ public class EyeCandy
         return mGestureDetector.onTouchEvent(event);
     }
 
-    @Override
-    public View makeView() {
-        ImageView view  = new ImageView(this.context);
-        view.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        view.setLayoutParams(new ImageSwitcher.LayoutParams(ImageSwitcher.LayoutParams.FILL_PARENT, ImageSwitcher.LayoutParams.FILL_PARENT));
-        return view;
+    public void onFetchComplete(Image image) {
+
+        if (image == null) {
+            Log.d(TAG, "Error fetching image");
+            flipImage();
+            return;
+        }
+
+        Log.d(TAG, "fetch complete " + image);
+        sampleImage(image);
     }
 
-    public void onFetchComplete(Image image) {
-        Log.d(TAG, "fetch complete " + image);         
-        showImage(image);
+    public void onSampleComplete(Image image, Bitmap sampled) {
+        Log.d(TAG, "sample complete " + image);         
+        showImage(image, sampled);
     }
 
     public void onScrapeComplete(int numScraped) {
@@ -157,9 +176,9 @@ public class EyeCandy
         }
 
         Log.d(TAG, "flipping to " + image + ", shown " + image.getTimesShown() + " times");
-            
+
         if (image.isCached(this.context)) {
-            showImage(image);
+            sampleImage(image);
         } else {
             fetchImage(image);
         }
@@ -181,10 +200,92 @@ public class EyeCandy
         Tasks.fetchImage(this.context, image, this);
     }
 
-    public void showImage(Image image) {
+    public void sampleImage(Image image) {
+        int width = mImageFront.getMeasuredWidth() * 2;
+        int height = mImageFront.getMeasuredHeight() * 2;
+        Tasks.sampleImage(this.context, image, width, height, this);
+    }
 
-        if (image != null) {
-            mImage.setImageURI(image.getCachedImageUri(this.context));
+    public void burnsImage(ImageView image) {
+        final Rect startBounds = new Rect();
+        final Point globalOffset = new Point();            
+
+        image.getGlobalVisibleRect(startBounds, globalOffset);
+        Log.d(TAG, "start bounds = " + startBounds);
+
+        startBounds.offset(-globalOffset.x, -globalOffset.y);
+        Log.d(TAG, "localized start bounds = " + startBounds);
+        
+        final Rect finalBounds = new Rect(startBounds);
+        finalBounds.offset(-100, -100);
+        Log.d(TAG, "final bounds = " + finalBounds);
+
+        AnimatorSet set = new AnimatorSet();
+        set
+            // .play(ObjectAnimator.ofFloat(image, View.X,startBounds.left, finalBounds.left))
+            // .with(ObjectAnimator.ofFloat(image, View.Y, startBounds.top, finalBounds.top))
+            .play(ObjectAnimator.ofFloat(image, View.SCALE_X, 1f, 2f))
+            .with(ObjectAnimator.ofFloat(image, View.SCALE_Y, 1f, 2f));
+        set.setDuration(interval);
+        set.setInterpolator(new DecelerateInterpolator());
+        set.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                }
+                
+                @Override
+                public void onAnimationCancel(Animator animation) {
+                }
+            });
+
+        set.start();    
+    }
+
+    public void fadeImage(final ImageView front, final ImageView back) {
+        front.bringToFront();
+        back.setAlpha(1f);
+
+        Animator animator = ObjectAnimator.ofFloat(front, "alpha", 1.0f, 0.0f);
+        animator.setDuration(1000);
+        animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                }
+                
+                @Override
+                public void onAnimationCancel(Animator animation) {
+                }
+            });
+        animator.start();   
+    }
+
+    public void swapImages(ImageView front, ImageView back) {
+        ImageView tmp = front;
+        mImageFront = back;
+        mImageBack = tmp;
+    }
+
+    public void showImage(Image image, Bitmap sampled) {
+
+        // At each tick:
+        // if back exists, fade back then show and slide front
+        // else show and slide front
+        // swap front and back 
+
+        if (image != null && sampled != null) {
+            if (tick > 0) {
+                mImageBack.setImageBitmap(sampled);
+                fadeImage(mImageFront, mImageBack);
+                burnsImage(mImageBack);
+            } else {
+                mImageFront.setImageBitmap(sampled);
+                burnsImage(mImageFront);
+            }
+
+            swapImages(mImageFront, mImageBack);
+
+            tick++;
+
             Tasks.markImageShown(this.context, image);
         }
 

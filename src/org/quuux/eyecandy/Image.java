@@ -93,8 +93,7 @@ public class Image {
         return timesShown;
     }
 
-    // FIXME needs to be hash of url
-    public String getCachedImagePath(Context context) {
+    protected String getImageHash() {
         try {
             MessageDigest message_digest = MessageDigest.getInstance("MD5");
             message_digest.update(url.getBytes());
@@ -104,18 +103,35 @@ public class Image {
             for (int i=0; i<digest.length; i++)
                 buf.append(Integer.toHexString(0xFF & digest[i]));
 
-            return context.getExternalCacheDir().getPath() + "/" + buf.toString() + ".jpg";
+            return buf.toString();
         } catch(Exception e) {
             return null;
         }
+    }
+
+    public String getCachedImagePath(Context context) {
+        return context.getExternalCacheDir().getPath() + "/" + getImageHash() + ".jpg";
+    }
+
+    public String getSampledImagePath(Context context) {
+        return context.getExternalCacheDir().getPath() + "/" + getImageHash() + ".sampled.jpg";
     }
 
     public Uri getCachedImageUri(Context context) {
         return Uri.parse("file://" + getCachedImagePath(context));
     }
 
+    public Uri getSampledImageUri(Context context) {
+        return Uri.parse("file://" + getSampledImagePath(context));
+    }
+
     public boolean isCached(Context context) {
         return new File(getCachedImagePath(context)).exists();
     }    
+
+    public boolean isSampled(Context context) {
+        return new File(getSampledImagePath(context)).exists();
+    }    
+
 }
 

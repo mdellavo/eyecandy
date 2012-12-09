@@ -16,7 +16,7 @@ import java.io.File;
 
 class FetchImageTask extends AsyncTask<Image, Integer, Image> {
 
-    private static final String TAG = "FetchTask";
+    private static final String TAG = "FetchImageTask";
 
     private static final int BUF_SIZE = 1024;
 
