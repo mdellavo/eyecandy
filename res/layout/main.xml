@@ -14,7 +14,7 @@
     <ImageView
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
-        android:layout_centerxbVertical="true"
+        android:layout_centerVertical="true"
         android:scaleType="centerCrop"
         android:id="@+id/back"/>
 

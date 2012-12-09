@@ -1,12 +1,12 @@
 package org.quuux.eyecandy;
 
 import android.content.Context;
-import android.net.Uri;
+import android.os.AsyncTask;
 
 public class Tasks {
 
     static void scrapeReddit(Context context, String subreddit, ScrapeCompleteListener listener) {
-        new ScrapeRedditTask(context, listener).execute(subreddit);
+        new ScrapeRedditTask(context, listener).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, subreddit);
     }
 
     static void scrapeReddit(Context context, String subreddits[], ScrapeCompleteListener listener) {

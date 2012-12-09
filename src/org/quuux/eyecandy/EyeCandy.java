@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.util.Log;
+import android.net.Uri;
 import android.view.View;
 import android.view.MotionEvent;
 import android.widget.ImageView;
@@ -339,7 +340,7 @@ public class EyeCandy
     
     public void openImageSource() {
         Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(current.getSourceUrl()));
-        startActivity(i);
+        context.startActivity(i);
     }
 
     public float randomRange(float min, float max) {

@@ -16,7 +16,7 @@ public class EyeCandyDream extends DreamService {
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
 
-        setInteractive(false);
+        setInteractive(true);
         setFullscreen(true);
         setContentView(R.layout.main);
 
