@@ -1,6 +1,7 @@
 package org.quuux.eyecandy;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
@@ -80,6 +81,7 @@ public class EyeCandy
         //"foodporn"
     };
 
+    protected Image current;
     protected TextView mLabel;
     protected ImageView mImageFront, mImageBack;
     protected Handler mHandler;
@@ -98,9 +100,11 @@ public class EyeCandy
         };
 
     protected SimpleOnGestureListener mGestureListener = new SimpleOnGestureListener() {
+
             @Override
             public boolean onDoubleTap(MotionEvent e) { 
                 Log.d(TAG, "double tap: " + e);
+                openImageSource();
                 return super.onDoubleTap(e);
             }
 
@@ -306,6 +310,7 @@ public class EyeCandy
         // swap front and back 
 
         if (image != null && sampled != null) {
+            current = image;
 
             Log.d(TAG, "showing image " + image.getTitle());
 
@@ -330,6 +335,11 @@ public class EyeCandy
 
         mHandler.removeCallbacks(mImageFlipper);
         mHandler.postDelayed(mImageFlipper, interval);
+    }
+    
+    public void openImageSource() {
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(current.getSourceUrl()));
+        startActivity(i);
     }
 
     public float randomRange(float min, float max) {
