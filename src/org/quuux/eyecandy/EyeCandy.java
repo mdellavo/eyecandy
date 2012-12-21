@@ -90,6 +90,7 @@ public class EyeCandy
     protected int interval;
     protected int tick = 0;
     protected Animator mCurrentAnimator;
+    protected boolean mLoading = false;
 
     protected Random mRandom = new Random();
 
@@ -97,6 +98,13 @@ public class EyeCandy
             @Override
             public void run() {
                 flipImage();
+            }
+        };
+
+    protected Runnable mImageScraper = new Runnable() {
+            @Override
+            public void run() {
+                Tasks.scrapeReddit(context, SUBREDDITS, EyeCandy.this);
             }
         };
 
@@ -123,6 +131,7 @@ public class EyeCandy
                 Log.d(TAG, "on long press : " + e);
                 super.onLongPress(e);
             }
+
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
                 Log.d(TAG, "tap: " + e);
@@ -154,7 +163,8 @@ public class EyeCandy
         mImageBack = attach(back);
 
         flipImage();
-        Tasks.scrapeReddit(this.context, SUBREDDITS, this);
+        
+        mHandler.post(mImageScraper);
     }
 
     public boolean onTouch(View view, MotionEvent event)
@@ -166,6 +176,7 @@ public class EyeCandy
 
         if (image == null) {
             Log.d(TAG, "Error fetching image");
+            mLoading = false;
             flipImage();
             return;
         }
@@ -175,7 +186,15 @@ public class EyeCandy
     }
 
     public void onSampleComplete(Image image, Bitmap sampled) {
-        Log.d(TAG, "sample complete " + image);         
+        Log.d(TAG, "sample complete " + image);
+         
+        if (sampled == null) {
+            Log.d(TAG, "Error decoding/sampling image");
+            mLoading = false;
+            flipImage();
+            return;
+        }
+
         showImage(image, sampled);
     }
 
@@ -207,6 +226,11 @@ public class EyeCandy
     }
 
     public void flipImage() {
+        if (mLoading) {
+            return;
+        }
+
+        mLoading = true;
         Tasks.nextImage(this.context, this);
     }
 
@@ -224,7 +248,7 @@ public class EyeCandy
         final Rect startBounds = new Rect();
         final Point globalOffset = new Point();            
 
-        float startScale = randomRange(1f, 2f);
+        float startScale = 1f;
         float finalScale = randomRange(1f, 2f);
  
         Log.d(TAG, "scaling from " + startScale + " -> " + finalScale);
@@ -237,9 +261,15 @@ public class EyeCandy
         Log.d(TAG, "localized start bounds = " + startBounds);
         
         final Rect finalBounds = new Rect(startBounds);
-        int finalOffsetX = randomInt(-startBounds.width() / 4, startBounds.width() / 4);
-        int finalOffsetY = randomInt(-startBounds.height() / 4, startBounds.height() / 4);
+        int finalOffsetX = 0;
+        if (image.getMeasuredWidth() > startBounds.width()) {
+            finalOffsetX = randomInt(-startBounds.width() / 2, startBounds.width() / 2);
+        }
 
+        int finalOffsetY = 0;
+        if (image.getMeasuredHeight() > startBounds.height()) {
+            finalOffsetY = randomInt(-startBounds.height() / 2, startBounds.height() / 2);
+        }
         Log.d(TAG, "offsetting image " + finalOffsetX + ", " + finalOffsetY);
  
         finalBounds.offset(finalOffsetX, finalOffsetY);
@@ -268,8 +298,8 @@ public class EyeCandy
 
      public void fadeImage(final ImageView front, final ImageView back) {
         front.bringToFront();
-        fade(front, 1.0f, 0.0f, 1000, null).start();
         back.setAlpha(1f);
+        fade(front, 1.0f, 0.0f, 1000, null).start();
      }
 
     public void swapImages(ImageView front, ImageView back) {
@@ -329,6 +359,7 @@ public class EyeCandy
             mLabel.setText(image.getTitle());
             showLabel();
 
+            mLoading = false;
             tick++;
 
             Tasks.markImageShown(this.context, image);
@@ -339,7 +370,24 @@ public class EyeCandy
     }
     
     public void openImageSource() {
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(current.getSourceUrl()));
+
+        if (current == null) {
+            Log.e(TAG, "current image is null?!");
+            return;
+        }
+
+        String url = current.getSourceUrl();
+        if (url == null) {
+            Log.e(TAG, "No source url? -> " + current.getTitle());
+
+            url = current.getUrl();
+            if (url == null) {
+                Log.e(TAG, "No url too? -> " + current.getTitle());
+                return;
+            }
+        }
+
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         context.startActivity(i);
     }
 

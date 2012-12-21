@@ -27,7 +27,7 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
 
     private static final String FORMAT = "http://www.reddit.com/r/%s.json?limit=100";    
 
-    private static final long SCRAPE_PERIOD = 4 * 60 * 60 * 1000;
+    private static final long SCRAPE_PERIOD = 24 * 60 * 60 * 1000;
 
     protected WeakReference mContext;
     protected ScrapeCompleteListener mListener;
@@ -62,19 +62,21 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
         Integer rv = new Integer(-1);
         try { 
             DatabaseHelper db = new DatabaseHelper((Context)mContext.get());
+
+            URL url = new URL(String.format(FORMAT, uri));
             
-            long last_scrape = db.lastSraped(uri);
+            long last_scrape = db.lastSraped(url.toString());
             long now = System.currentTimeMillis();
             long ago = now - last_scrape;
 
-            Log.d(TAG, uri + " was last scraped " + (ago/1000) + " seconds ago");
+            Log.d(TAG, "now = " + now + " | last = " + last_scrape);
+
+            Log.d(TAG, url + " was last scraped " + (ago/1000) + " seconds ago");
 
             if (ago < SCRAPE_PERIOD) {
                 Log.d(TAG, "skipping " + uri);
                 return rv;
             }
-
-            URL url = new URL(String.format(FORMAT, uri));
                 
             Log.d(TAG, "Scraping " + url);
            
@@ -119,7 +121,7 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
             Log.d(TAG, "Found " + images.size() + " images");
             
             db.syncImages(images);
-            db.markScrape(uri);
+            db.markScrape(url.toString());
 
             rv = new Integer(images.size());
 

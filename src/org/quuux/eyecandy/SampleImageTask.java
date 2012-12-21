@@ -47,8 +47,9 @@ class SampleImageTask extends AsyncTask<Image, Void, Bitmap> {
         mImage = images[0];
 
         String image_path = mImage.getCachedImagePath((Context)mContext.get());
-        final BitmapFactory.Options options = new BitmapFactory.Options();
+        Log.d(TAG, "opening image for sampling: " + image_path);
 
+        final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(image_path, options);
   

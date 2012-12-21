@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String TAG = "DatabaseHelper";
 
-    private static final int DATABASE_VERSION = 5;
+    private static final int DATABASE_VERSION = 6;
 
     private static final String DATABASE_NAME = "eyecandy.db";
 
@@ -37,7 +37,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String SCRAPE_TABLE_CREATE = 
         "CREATE TABLE " + SCRAPE_TABLE_NAME + " (" + 
         "url TEXT PRIMARY KEY," + 
-        "last_scrape INTEGER" + 
+        "last_scrape BIGINT" + 
         ");";
 
     private static final String SCRAPE_TABLE_DROP = "DROP TABLE IF EXISTS " + SCRAPE_TABLE_NAME + ";";
@@ -165,7 +165,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (!cursor.moveToFirst())
             return 0;
 
-        int last_scraped = Utils.getInt(cursor, "last_scraped");
+        long last_scraped = cursor.getLong(0);
+
+        Log.d(TAG, url + " was last scraped on " + last_scraped);
 
         cursor.close();
         db.close();
@@ -193,7 +195,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             inserter.execute();
 
             db.setTransactionSuccessful();
-            Log.d(TAG, "marked scrape " + scrapedUrl);
+            Log.d(TAG, "marked scrape " + scrapedUrl + " at " + now);
             
         } catch(Exception e) {
             Log.e(TAG, "Error marking scrape", e);
