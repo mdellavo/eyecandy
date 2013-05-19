@@ -2,7 +2,6 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import android.util.Log;
 
 import java.lang.ref.WeakReference;
 
@@ -23,11 +22,11 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
-    private static final String TAG = "ScrapeRedditTask";
+    private final Log mLog = new Log(ScrapeRedditTask.class);
 
-    private static final String FORMAT = "http://www.reddit.com/r/%s.json?limit=100";    
+    private static final String FORMAT = "http://www.reddit.com/r/%s.json?limit=100";
 
-    private static final long SCRAPE_PERIOD = 24 * 60 * 60 * 1000;
+    private static final long SCRAPE_PERIOD = 60 * 60 * 1000;
 
     protected WeakReference mContext;
     protected ScrapeCompleteListener mListener;
@@ -50,7 +49,7 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
             
             rv = new JSONObject(response.toString());
         } catch(Exception e) {
-            Log.e(TAG, "Error fetching json", e);
+            mLog.e("Error fetching json", e);
         }
         
         return rv;
@@ -69,16 +68,14 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
             long now = System.currentTimeMillis();
             long ago = now - last_scrape;
 
-            Log.d(TAG, "now = " + now + " | last = " + last_scrape);
-
-            Log.d(TAG, url + " was last scraped " + (ago/1000) + " seconds ago");
+            mLog.d("%s was last scraped %d seconds ago", url, (ago/1000));
 
             if (ago < SCRAPE_PERIOD) {
-                Log.d(TAG, "skipping " + uri);
+                mLog.d("skipping: %s", uri);
                 return rv;
             }
                 
-            Log.d(TAG, "Scraping " + url);
+            mLog.d("Scraping: %s",url);
            
             URLConnection conn = url.openConnection();
             conn.connect();
@@ -90,13 +87,13 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
             
             JSONObject data = json.optJSONObject("data");
             if (data == null) {
-                Log.e(TAG, "json doesnt have data property: " + json);
+                mLog.e("json doesnt have data property: %s", json);
                 return null;
             }
 
             JSONArray children = data.optJSONArray("children");
             if (children == null) {
-                Log.e(TAG, "data doesnt have children property: " + json);
+                mLog.e("data doesnt have children property: %s", json);
                 return null;
             }
             
@@ -107,18 +104,17 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
                 JSONObject image_json = image_container.optJSONObject("data");
 
                 if (image_json == null) {
-                    Log.e(TAG, "image container does not have dat property: " + image_container);
+                    mLog.e("image container does not have dat property: %s", image_container);
                 }
 
                 Image image = Image.fromReddit(image_json);
 
                 if (image != null) {
-                    Log.d(TAG, "scraped image " + image.getUrl());
                     images.add(image);
                 }
             }
             
-            Log.d(TAG, "Found " + images.size() + " images");
+            mLog.d("Found %d images", images.size());
             
             db.syncImages(images);
             db.markScrape(url.toString());
@@ -126,7 +122,7 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
             rv = new Integer(images.size());
 
         } catch (Exception e) {
-            Log.e(TAG, "Error scraping " + uri, e);
+            mLog.e("Error scraping %s", e, uri);
         }
 
         return rv;

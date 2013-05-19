@@ -2,7 +2,7 @@ package org.quuux.eyecandy;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.Window;
@@ -26,10 +26,12 @@ public class MainActivity extends Activity {
 
         setContentView(R.layout.main);
 
+        View v = findViewById(android.R.id.content);
+        v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+
         eyeCandy = new EyeCandy(this, INTERVAL);
         eyeCandy.attach((TextView)findViewById(R.id.label), 
-                        (ImageView)findViewById(R.id.front),
-                        (ImageView)findViewById(R.id.back));
+                        (BurnsView)findViewById(R.id.image));
     }
 
     @Override

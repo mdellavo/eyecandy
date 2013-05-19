@@ -1,7 +1,6 @@
 package org.quuux.eyecandy;
 
 import android.content.Context;
-import android.util.Log;
 
 import android.database.Cursor;
 import android.database.DatabaseUtils.InsertHelper;
@@ -11,6 +10,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import java.util.List;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
+    private static final Log mLog = new Log(DatabaseHelper.class);
+
     private static final String TAG = "DatabaseHelper";
 
     private static final int DATABASE_VERSION = 6;
@@ -98,7 +99,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             for(Image image: images) {
                 
                 if (imageExists(db, image)) {
-                    Log.d(TAG, "Image already exists " + image);
                     continue;
                 }
 
@@ -116,7 +116,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
 
             db.setTransactionSuccessful();
-            Log.d(TAG, "Synced images");
+            mLog.d("Synced images");
             
         } catch(Exception e) {
             Log.e(TAG, "Error syncing images", e);
@@ -167,8 +167,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         long last_scraped = cursor.getLong(0);
 
-        Log.d(TAG, url + " was last scraped on " + last_scraped);
-
         cursor.close();
         db.close();
 
@@ -195,10 +193,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             inserter.execute();
 
             db.setTransactionSuccessful();
-            Log.d(TAG, "marked scrape " + scrapedUrl + " at " + now);
-            
+
         } catch(Exception e) {
-            Log.e(TAG, "Error marking scrape", e);
+            mLog.e("Error marking scrape", e);
         }
 
         db.endTransaction();

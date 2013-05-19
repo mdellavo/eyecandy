@@ -2,9 +2,10 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Environment;
 import android.os.Handler;
-import android.util.Log;
 import android.net.Uri;
+import android.support.v4.util.LruCache;
 import android.view.View;
 import android.view.MotionEvent;
 import android.widget.ImageView;
@@ -23,18 +24,20 @@ import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.AnimatorListenerAdapter;
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.*;
 
 import java.util.Random;
 
 public class EyeCandy
     implements View.OnTouchListener,
-               FetchCompleteListener,
                ScrapeCompleteListener,
-               NextImageListener, 
-               SampleCompleteListener {
- 
-    private static final String TAG = "EyeCandyBase";
-    private static final String SUBREDDITS[] = { 
+               NextImageListener  {
+
+    private static final Log mLog = new Log(EyeCandy.class);
+
+    private static final String SUBREDDITS[] = {
         "earthporn",
         "villageporn",
         "cityporn",
@@ -79,20 +82,45 @@ public class EyeCandy
         "geologyporn",
         "futureporn",
         "winterporn",
+        "JoshuaTree",
+        "NZPhotos",
+        "EyeCandy",
+        "ruralporn",
+        "spaceart"
         //"foodporn"
     };
 
+    class BitmapLruCache extends LruCache<String, Bitmap> implements ImageLoader.ImageCache {
+
+        public BitmapLruCache(int maxSize) {
+            super(maxSize);
+        }
+
+        @Override
+        public Bitmap getBitmap(String url) {
+            return get(url);
+        }
+
+        @Override
+        public void putBitmap(String url, Bitmap bitmap) {
+            put(url, bitmap);
+        }
+    }
+
     protected Image current;
     protected TextView mLabel;
-    protected ImageView mImageFront, mImageBack;
+    protected BurnsView mView;
     protected Handler mHandler;
     protected Context context;
     protected int interval;
     protected int tick = 0;
     protected Animator mCurrentAnimator;
     protected boolean mLoading = false;
-
+    protected boolean mRunning = false;
     protected Random mRandom = new Random();
+
+    private RequestQueue mRequestQueue;
+    private ImageLoader mImageLoader;
 
     protected Runnable mImageFlipper = new Runnable() {
             @Override
@@ -112,7 +140,7 @@ public class EyeCandy
 
             @Override
             public boolean onDoubleTap(MotionEvent e) { 
-                Log.d(TAG, "double tap: " + e);
+                mLog.d("double tap: %s", e);
                 openImageSource();
                 return super.onDoubleTap(e);
             }
@@ -120,7 +148,7 @@ public class EyeCandy
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) 
             {
-                Log.d(TAG, "fling: e1=" + e1 +", e2=" + e2 + ", velocityX=" + velocityX + "velocityY=" + velocityY);
+                mLog.d("fling: e1=%s, e2=%s, velocityX=%f, velocityY=%f", e1, e2, velocityX, velocityY);
                 flipImage();
                 
                 return super.onFling(e1, e2, velocityX, velocityY);
@@ -128,13 +156,13 @@ public class EyeCandy
 
             @Override
             public void onLongPress(MotionEvent e) { 
-                Log.d(TAG, "on long press : " + e);
+                mLog.d("on long press : " + e);
                 super.onLongPress(e);
             }
 
             @Override
             public boolean onSingleTapConfirmed(MotionEvent e) {
-                Log.d(TAG, "tap: " + e);
+                mLog.d("tap: %s", e);
                 showLabel();
                 return true;
             }
@@ -146,21 +174,21 @@ public class EyeCandy
         this.context = context;
         this.interval = interval;
 
+        mRequestQueue = Volley.newRequestQueue(context);
+        mImageLoader = new ImageLoader(mRequestQueue, new BitmapLruCache(3));
+
         mGestureDetector = new GestureDetector(this.context, mGestureListener, mHandler);
     }
 
-    public ImageView attach(ImageView image) {
-        image.setClickable(true);
-        image.setOnTouchListener(this);
-        return image;
-    }
 
-    public void attach(TextView label, ImageView front, ImageView back) {
+    public void attach(TextView label, BurnsView view) {
         mHandler = new Handler();
-                                                
+
         mLabel = label;
-        mImageFront = attach(front);
-        mImageBack = attach(back);
+
+        mView = view;
+        mView.setClickable(true);
+        mView.setOnTouchListener(this);
 
         flipImage();
         
@@ -172,24 +200,11 @@ public class EyeCandy
         return mGestureDetector.onTouchEvent(event);
     }
 
-    public void onFetchComplete(Image image) {
-
-        if (image == null) {
-            Log.d(TAG, "Error fetching image");
-            mLoading = false;
-            flipImage();
-            return;
-        }
-
-        Log.d(TAG, "fetch complete " + image);
-        sampleImage(image);
-    }
-
     public void onSampleComplete(Image image, Bitmap sampled) {
-        Log.d(TAG, "sample complete " + image);
+        mLog.d("sample complete: %s", image);
          
         if (sampled == null) {
-            Log.d(TAG, "Error decoding/sampling image");
+            mLog.d("Error decoding/sampling image");
             mLoading = false;
             flipImage();
             return;
@@ -199,34 +214,33 @@ public class EyeCandy
     }
 
     public void onScrapeComplete(int numScraped) {
-        Log.d(TAG, "scrape complete " + numScraped);
+        mLog.d("scrape complete: %d", numScraped);
     }
 
     public void nextImage(Image image) {
         if (image == null) {
-            Log.d(TAG, "no next image!");
+            mLog.d("no next image!");
             return;
         }
 
-        Log.d(TAG, "flipping to " + image + ", shown " + image.getTimesShown() + " times");
+        mLog.d("flipping to %s, shown %d times", image, image.getTimesShown());
 
-        if (image.isCached(this.context)) {
-            sampleImage(image);
-        } else {
-            fetchImage(image);
-        }
+        fetchImage(image);
     }
  
     public void startFlipping() {
-        mHandler.postDelayed(mImageFlipper, interval);
+        mRunning = true;
+
+        mHandler.post(mImageFlipper);
     }
 
     public void stopFlipping() {
+        mRunning = false;
         mHandler.removeCallbacks(mImageFlipper);
     }
 
     public void flipImage() {
-        if (mLoading) {
+        if (mLoading || !mRunning) {
             return;
         }
 
@@ -234,78 +248,24 @@ public class EyeCandy
         Tasks.nextImage(this.context, this);
     }
 
-    public void fetchImage(Image image) {
-        Tasks.fetchImage(this.context, image, this);
-    }
+    public void fetchImage(final Image image) {
+        final int width = Math.min(mView.getMeasuredWidth() * 2, mView.getMaxImageWidth());
+        final int height = Math.min(mView.getMeasuredHeight() * 2, mView.getMaxImageHeight());
 
-    public void sampleImage(Image image) {
-        int width = mImageFront.getMeasuredWidth() * 2;
-        int height = mImageFront.getMeasuredHeight() * 2;
-        Tasks.sampleImage(this.context, image, width, height, this);
-    }
+        mImageLoader.get(image.getUrl(), new ImageLoader.ImageListener() {
+            @Override
+            public void onResponse(ImageLoader.ImageContainer response, boolean isImmediate) {
+                mLoading = false;
 
-    public void burnsImage(ImageView image) {
-        final Rect startBounds = new Rect();
-        final Point globalOffset = new Point();            
+                showImage(image, response.getBitmap());
+            }
 
-        float startScale = 1f;
-        float finalScale = randomRange(1f, 2f);
- 
-        Log.d(TAG, "scaling from " + startScale + " -> " + finalScale);
-
-        image.getGlobalVisibleRect(startBounds, globalOffset);
-        Log.d(TAG, "start bounds = " + startBounds);
-        Log.d(TAG, "global offset = " + globalOffset);
-
-        startBounds.offset(-globalOffset.x, -globalOffset.y);
-        Log.d(TAG, "localized start bounds = " + startBounds);
-        
-        final Rect finalBounds = new Rect(startBounds);
-        int finalOffsetX = 0;
-        if (image.getMeasuredWidth() > startBounds.width()) {
-            finalOffsetX = randomInt(-startBounds.width() / 2, startBounds.width() / 2);
-        }
-
-        int finalOffsetY = 0;
-        if (image.getMeasuredHeight() > startBounds.height()) {
-            finalOffsetY = randomInt(-startBounds.height() / 2, startBounds.height() / 2);
-        }
-        Log.d(TAG, "offsetting image " + finalOffsetX + ", " + finalOffsetY);
- 
-        finalBounds.offset(finalOffsetX, finalOffsetY);
-        Log.d(TAG, "final bounds = " + finalBounds);
-
-        AnimatorSet set = new AnimatorSet();
-        set
-            .play(ObjectAnimator.ofFloat(image, View.SCALE_X, startScale, finalScale))
-            .with(ObjectAnimator.ofFloat(image, View.SCALE_Y, startScale, finalScale))
-            .with(ObjectAnimator.ofFloat(image, View.X,startBounds.left, finalBounds.left))
-            .with(ObjectAnimator.ofFloat(image, View.Y, startBounds.top, finalBounds.top));
-
-        set.setDuration(2 * interval);
-        //set.setInterpolator(new DecelerateInterpolator());
-        set.addListener(new AnimatorListenerAdapter() {
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                }
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                }
-            });
-
-        set.start();    
-    }
-
-     public void fadeImage(final ImageView front, final ImageView back) {
-        front.bringToFront();
-        back.setAlpha(1f);
-        fade(front, 1.0f, 0.0f, 1000, null).start();
-     }
-
-    public void swapImages(ImageView front, ImageView back) {
-        ImageView tmp = front;
-        mImageFront = back;
-        mImageBack = tmp;
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                mLoading = false;
+                flipImage();
+            }
+        }, width, height);
     }
 
     public Animator fade(View view, float start, float end, long duration, AnimatorListenerAdapter listener) {
@@ -323,17 +283,19 @@ public class EyeCandy
         fade(mLabel, 0.0f, 1.0f, 1000, new AnimatorListenerAdapter() {
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    fade(mLabel, 1.0f, 0.0f, 2000, null).start();
+                    fade(mLabel, 1.0f, 0.0f, 3000, null).start();
                 }
                 
                 @Override
                 public void onAnimationCancel(Animator animation) {
-                    fade(mLabel, 1.0f, 0.0f, 2000, null).start();
+                    fade(mLabel, 1.0f, 0.0f, 1000, null).start();
                 }
             }).start();
     }
     
     public void showImage(Image image, Bitmap sampled) {
+
+
 
         // At each tick:
         // if back exists, fade back then show and slide front
@@ -341,21 +303,10 @@ public class EyeCandy
         // swap front and back 
 
         if (image != null && sampled != null) {
-            current = image;
+            mView.swapImage(sampled);
 
-            Log.d(TAG, "showing image " + image.getTitle());
 
-            if (tick > 0) {
-                mImageBack.setImageBitmap(sampled);
-                fadeImage(mImageFront, mImageBack);
-                burnsImage(mImageBack);
-            } else {
-                mImageFront.setImageBitmap(sampled);
-                burnsImage(mImageFront);
-            }
 
-            swapImages(mImageFront, mImageBack);
- 
             mLabel.setText(image.getTitle());
             showLabel();
 
@@ -372,17 +323,17 @@ public class EyeCandy
     public void openImageSource() {
 
         if (current == null) {
-            Log.e(TAG, "current image is null?!");
+            mLog.e("current image is null?!");
             return;
         }
 
         String url = current.getSourceUrl();
         if (url == null) {
-            Log.e(TAG, "No source url? -> " + current.getTitle());
+            mLog.e("No source url? -> " + current.getTitle());
 
             url = current.getUrl();
             if (url == null) {
-                Log.e(TAG, "No url too? -> " + current.getTitle());
+                mLog.e("No url too? -> " + current.getTitle());
                 return;
             }
         }

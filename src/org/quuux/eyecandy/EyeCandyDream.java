@@ -1,7 +1,6 @@
 package org.quuux.eyecandy;
 
 import android.service.dreams.DreamService;
-import android.util.Log;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -22,8 +21,7 @@ public class EyeCandyDream extends DreamService {
 
         eyeCandy = new EyeCandy(this, INTERVAL); 
         eyeCandy.attach((TextView)findViewById(R.id.label), 
-                        (ImageView)findViewById(R.id.front),
-                        (ImageView)findViewById(R.id.back));
+                        (BurnsView)findViewById(R.id.image));
     }
 
     @Override

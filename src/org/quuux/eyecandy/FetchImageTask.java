@@ -2,7 +2,6 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.net.Uri;
 
 import java.lang.ref.WeakReference;
@@ -41,7 +40,7 @@ class FetchImageTask extends AsyncTask<Image, Integer, Image> {
 
         Image image = images[0];
 
-        Log.d(TAG, "fetching " + image);
+        Log.d(TAG, "fetching %s", image);
 
         try {
             URL url = new URL(image.getUrl());
@@ -50,10 +49,10 @@ class FetchImageTask extends AsyncTask<Image, Integer, Image> {
    
             try {
                 int response_code = conn.getResponseCode();
-                Log.d(TAG, "response code = " + response_code);
+                Log.d(TAG, "response code = %d", response_code);
 
                 if (response_code != 200) {
-                    Log.d(TAG, "Fetch not successful: " + conn.getResponseMessage());
+                    Log.d(TAG, "Fetch not successful: %s", conn.getResponseMessage());
 
                     return null;
                 }
@@ -73,7 +72,7 @@ class FetchImageTask extends AsyncTask<Image, Integer, Image> {
                     //onprofressupdate
                 }
 
-                Log.d(TAG, "fetch " + (total/1024.0f) + " KB");
+                Log.d(TAG, "fetch %f KB", (total/1024.0f));
             
                 output.flush();
                 output.close();
@@ -88,7 +87,7 @@ class FetchImageTask extends AsyncTask<Image, Integer, Image> {
             }
 
         } catch(Exception e) {
-            Log.e(TAG, "Error fetching " + images[0], e);
+            Log.e(TAG, "Error fetching %s", e, images[0]);
         } 
 
         return rv;

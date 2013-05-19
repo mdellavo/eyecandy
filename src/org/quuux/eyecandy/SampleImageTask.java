@@ -2,7 +2,6 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.net.Uri;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -11,7 +10,7 @@ import java.lang.ref.WeakReference;
 
 class SampleImageTask extends AsyncTask<Image, Void, Bitmap> {
 
-    private static final String TAG = "SampleImageTask";
+    private static final Log mLog = new Log(SampleImageTask.class);
 
     protected WeakReference mContext;
     protected SampleCompleteListener mListener;
@@ -32,11 +31,15 @@ class SampleImageTask extends AsyncTask<Image, Void, Bitmap> {
         int inSampleSize = 1;
 
         if (height > reqHeight || width > reqWidth) {
-            if (width > height) {
-                inSampleSize = Math.round((float)height / (float)reqHeight);
-            } else {
-                inSampleSize = Math.round((float)width / (float)reqWidth);
-            }
+
+            // Calculate ratios of height and width to requested height and width
+            final int heightRatio = Math.round((float) height / (float) reqHeight);
+            final int widthRatio = Math.round((float) width / (float) reqWidth);
+
+            // Choose the smallest ratio as inSampleSize value, this will guarantee
+            // a final image with both dimensions larger than or equal to the
+            // requested height and width.
+            inSampleSize = heightRatio < widthRatio ? heightRatio : widthRatio;
         }
 
         return inSampleSize;
@@ -47,7 +50,7 @@ class SampleImageTask extends AsyncTask<Image, Void, Bitmap> {
         mImage = images[0];
 
         String image_path = mImage.getCachedImagePath((Context)mContext.get());
-        Log.d(TAG, "opening image for sampling: " + image_path);
+        mLog.d("opening image for sampling: " + image_path);
 
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -56,9 +59,8 @@ class SampleImageTask extends AsyncTask<Image, Void, Bitmap> {
         options.inJustDecodeBounds = false;
         options.inSampleSize = calculateInSampleSize(options, mWidth, mHeight);
 
-        Log.d(TAG, "original size = " + options.outWidth + "x" + options.outHeight);
-        Log.d(TAG, "requested size = " + mWidth + "x" + mHeight);
-        Log.d(TAG, "sample size = " + options.inSampleSize);
+        mLog.d("sampling %dx%d image to requested %dx%d (sample size = %d)",
+                options.outWidth, options.outHeight, mWidth, mHeight, options.inSampleSize);
 
         Bitmap sampled = BitmapFactory.decodeFile(image_path, options);
 
