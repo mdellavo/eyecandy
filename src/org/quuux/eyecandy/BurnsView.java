@@ -10,12 +10,10 @@ import android.view.View;
 public class BurnsView extends View {
 
     public static final Log mLog = new Log(BurnsView.class);
-    public static final int MAX_BITMAP_HEIGHT = 2048;
-    public static final int MAX_BITMAP_WIDTH = 2048;
-    private Paint mTextPaint = new Paint();
 
     private final class BitmapHolder {
 
+        public Image image;
         public Bitmap bitmap;
         public int width, height;
         public Rect src = new Rect();
@@ -23,7 +21,8 @@ public class BurnsView extends View {
         public Paint paint = new Paint();
         public int age;
 
-        public BitmapHolder(Bitmap bitmap) {
+        public BitmapHolder(Image image, Bitmap bitmap) {
+            this.image = image;
             this.bitmap = bitmap;
 
             width = bitmap.getWidth();
@@ -45,11 +44,13 @@ public class BurnsView extends View {
             final int viewWidth = BurnsView.this.getWidth();
             final int viewHeight = BurnsView.this.getHeight();
 
-            final int remainingWidth =  Math.max(width - viewWidth, 0);
-            final int remainingHeight = Math.max(height - viewHeight, 0);
-
 
             if (isWidthConstrained() || isHeightConstrained()) {
+
+
+                final int remainingWidth =  Math.max(width - viewWidth, 0);
+                final int remainingHeight = Math.max(height - viewHeight, 0);
+
                 dest.set(0, 0, viewWidth, viewHeight);
 
                 final int offsetX = Math.max((int)Math.round(remainingWidth * animationProgress), 0);
@@ -59,7 +60,6 @@ public class BurnsView extends View {
                 src.set(offsetX, offsetY, viewWidth + offsetX, viewHeight + offsetY);
 
             } else {
-
                 final double scaleWidth = (double)viewWidth / (double)width;
                 final double scaleHeight = (double)viewHeight / (double)height;
 
@@ -68,6 +68,10 @@ public class BurnsView extends View {
                 final int scaledHeight = (int)Math.round(height * scale);
 
                 //mLog.d("scaling %dx%d by %f to %dx%d", width, height, scale, scaledWidth, scaledHeight);
+                final int remainingWidth =  Math.max(viewWidth - scaledWidth, 0);
+                final int remainingHeight = Math.max(viewHeight - scaledHeight, 0);
+
+
 
                 final int offsetX = remainingWidth / 2;
                 final int offsetY = remainingHeight / 2;
@@ -91,17 +95,27 @@ public class BurnsView extends View {
         }
     }
 
-    private static final int ANIMATION_TIME = 5 * 1000;
+    public static final int MAX_BITMAP_HEIGHT = 2048;
+    public static final int MAX_BITMAP_WIDTH = 2048;
+    private static final int ANIMATION_TIME = 10 * 1000;
     private static final int TRANSITION_TIME = 2 * 1000;
     public static final int DELAY_MILLIS = 20;
+
     private static final String TAG = "BurnsView";
 
     private boolean mRunning;
-    private long mLast;
+
+    private Paint mTextPaint = new Paint();
+
+    private BitmapHolder mPrevious;
     private BitmapHolder mCurrent;
     private BitmapHolder mNext;
+
+    private long mLast;
     private int mAnimationTime;
     private int mTransitionTime;
+
+    private ImageAdapter mAdapter;
 
     private int mMaxBitmapWidth = -1, mMaxBitmapHeight = -1;
 
@@ -131,7 +145,6 @@ public class BurnsView extends View {
         init();
     }
 
-
     private void init() {
         setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
@@ -149,6 +162,48 @@ public class BurnsView extends View {
         invalidate();
     }
 
+    public void setAdapter(ImageAdapter adapter) {
+        mAdapter = adapter;
+        nextImage();
+    }
+
+    public void nextImage() {
+        mAdapter.nextImage(new ImageLoadedListener() {
+            @Override
+            public void onImageLoaded(final Image image, final Bitmap bitmap) {
+                if (image == null || bitmap == null )
+                    return;
+
+                Log.d(TAG, "got image %s, displaying", image);
+
+                // FIXME race condition
+                mNext = new BitmapHolder(image, bitmap);
+                if (!transitioning() && mAnimationTime <= TRANSITION_TIME)
+                    startTransition();
+           }
+        });
+    }
+
+    public void previousImage() {
+        mAdapter.previousImage(new ImageLoadedListener() {
+            @Override
+            public void onImageLoaded(Image image, Bitmap bitmap) {
+                if (image == null || bitmap == null)
+                    return;
+
+                mPrevious = new BitmapHolder(image, bitmap);
+            }
+        });
+    }
+
+    private void startTransition() {
+        mTransitionTime = TRANSITION_TIME;
+    }
+
+    private boolean transitioning() {
+        return mTransitionTime > 0;
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
 
@@ -156,6 +211,9 @@ public class BurnsView extends View {
             if (mMaxBitmapHeight <0 || mMaxBitmapWidth <0) {
                 mMaxBitmapWidth = canvas.getMaximumBitmapWidth();
                 mMaxBitmapHeight = canvas.getMaximumBitmapHeight();
+
+                if (mAdapter != null)
+                    mAdapter.setMaxBitmapSize(mMaxBitmapWidth, mMaxBitmapHeight);
             }
         }
 
@@ -163,30 +221,42 @@ public class BurnsView extends View {
 
         super.onDraw(canvas);
 
+        if (!mRunning)
+            return;
+
+
         long now = System.currentTimeMillis();
         int elapsed = (int)(now - mLast);
+
+        mAnimationTime = Math.max(mAnimationTime - elapsed, 0);
+        if (!transitioning() && mAnimationTime <= TRANSITION_TIME && mNext != null) {
+            mLog.d("animation has %d ms left, transitioning...", mAnimationTime);
+            startTransition();
+        }
 
         if (mTransitionTime > 0) {
             mTransitionTime = Math.max(mTransitionTime - elapsed, 0);
 
-            final double transitionProgress = 1 - ((float)mTransitionTime / (float)TRANSITION_TIME);
+            final double transitionProgress = 1.0f - ((float)mTransitionTime / (float)TRANSITION_TIME);
 
-            mLog.d(String.format("Transitioning %f (%d / %d)", transitionProgress, mTransitionTime, TRANSITION_TIME));
+            //mLog.d("Transitioning %f (%d / %d)", transitionProgress, mTransitionTime, TRANSITION_TIME);
 
             if (mTransitionTime == 0 && mNext != null) {
                 mLog.d("Transition complete");
 
-                if (mCurrent != null)
-                    mCurrent.bitmap.recycle();
-
+                mPrevious = mCurrent;
                 mCurrent = mNext;
                 mNext = null;
 
                 mCurrent.paint.setAlpha(255);
 
+                nextImage();
+
+                mAnimationTime = ANIMATION_TIME;
+
             } else {
 
-                int currentAlpha = (int)Math.round(255 * (1- transitionProgress));
+                int currentAlpha = (int)Math.round(255 * (1.0f- transitionProgress));
                 int nextAlpha = (int)Math.round(255 * transitionProgress);
 
                 if (mNext != null) {
@@ -199,7 +269,7 @@ public class BurnsView extends View {
 
                 mTextPaint.setAlpha(currentAlpha);
 
-                mLog.d("currentAlpha = %d | nextAlpha = %d", currentAlpha, nextAlpha);
+                //mLog.d("currentAlpha = %d | nextAlpha = %d", currentAlpha, nextAlpha);
 
             }
 
@@ -231,6 +301,7 @@ public class BurnsView extends View {
         mLast = System.currentTimeMillis();
         mHandler.removeCallbacks(mAnimator);
         mHandler.post(mAnimator);
+        invalidate();
     }
 
 
@@ -239,26 +310,8 @@ public class BurnsView extends View {
         mHandler.removeCallbacks(mAnimator);
     }
 
-    protected void swapImage(Bitmap bitmap) {
-        mLog.d("swap Image - %s", bitmap);
-
-        mNext = new BitmapHolder(bitmap);
-        mTransitionTime = TRANSITION_TIME;
-
-        if (!mRunning)
-            startAnimation();
-    }
-
     public double getAspectRatio() {
         return (double)getWidth() / (double)getHeight();
-    }
-
-    public int getMaxImageWidth() {
-        return mMaxBitmapWidth;
-    }
-
-    public int getMaxImageHeight() {
-        return mMaxBitmapHeight;
     }
 
 }

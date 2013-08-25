@@ -7,13 +7,18 @@ import android.net.Uri;
 import java.io.File;
 
 import org.json.JSONObject;
+import org.quuux.orm.Column;
+import org.quuux.orm.Entity;
+import org.quuux.orm.Table;
 
 import java.security.MessageDigest;
 
-public class Image {
+@Table(name="images")
+public class Image implements Entity {
 
     public enum Source {
-        REDDIT
+        REDDIT,
+        IMGUR
     };
     
     public enum Status {
@@ -22,49 +27,67 @@ public class Image {
         FAILED
     };
 
-    protected Source source;
-    protected String url, sourceUrl, title;
-    protected Status status;
-    protected int timesShown;
+    public Image() {}
 
-    protected Image(Source source, String url, String sourceUrl, String title, Status status, int timesShown) {
+    @Column(primaryKey = true)
+    private long id = -1;
+
+    @Column()
+    private Source source;
+
+    @Column(unique = true, nullable = false)
+    private String url;
+
+    @Column()
+    private String title;
+
+    @Column()
+    private Status status;
+
+    @Column()
+    private int timesShown;
+
+    @Column()
+    private int width;
+
+    @Column()
+    private int height;
+
+    @Column()
+    private int size;
+
+    @Column()
+    private String mimeType;
+
+    @Column()
+    private boolean animated;
+
+
+
+    protected Image(final Source source, final String url, final String title, final Status status, final int timesShown) {
         this.source = source;
         this.url = url;
-        this.sourceUrl = sourceUrl;
         this.title = title;
         this.status = status;
         this.timesShown = timesShown;
     }
 
-    public static Image fromReddit(JSONObject json) {
-        String url = json.optString("url");
-
-        // FIXME hacked
-        if (!url.endsWith(".jpg") && !url.endsWith(".jpeg")) {
-            return null;
-        }
-
-        String sourceUrl = json.optString("permalink");
-        if (!sourceUrl.startsWith("http://reddit.com")) {
-            sourceUrl = "http://reddit.com" + sourceUrl;
-        }
-        
-        String title = json.optString("title");
-        
-        return new Image(Source.REDDIT, url, sourceUrl, title, Status.NOT_FETCHED, 0);
+    public static Image fromImgur(final String url, final String title) {
+        return new Image(Source.IMGUR, url, title, Status.NOT_FETCHED, 0);
     }
 
-    public static Image from(Cursor cursor) {
-        Source source = Source.valueOf(Utils.getString(cursor, "source"));
-        String url = Utils.getString(cursor, "url");
-        String sourceUrl = Utils.getString(cursor, "source_url");
-        String title = Utils.getString(cursor, "title");
-        Status status = Status.valueOf(Utils.getString(cursor, "status"));
-        int timesShown = Utils.getInt(cursor, "times_shown");
 
-        return new Image(source, url, sourceUrl, title, status, timesShown);
+    @Override
+    public int hashCode() {
+        return url.hashCode();
     }
 
+    @Override
+    public boolean equals(final Object o) {
+        return (o != null && o instanceof Image && ((Image) o).getUrl().equals(url));
+    }
+
+    @Override
     public String toString() {
         return "Image(" + url + ")";
     }
@@ -75,10 +98,6 @@ public class Image {
 
     public String getUrl() {
         return url;
-    }
-    
-    public String getSourceUrl() {
-        return sourceUrl;
     }
 
     public String getTitle() {

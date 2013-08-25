@@ -15,6 +15,10 @@ public class Log  {
         return sPrefix == null ? tag : sPrefix + ":" + tag;
     }
 
+    public static String buildTag(final Class klass) {
+        return buildTag(klass.getName());
+    }
+
     public static void d(final String tag, final String message, final Object...args) {
         if (BuildConfig.DEBUG) {
             android.util.Log.d(buildTag(tag), String.format(message, args));
@@ -115,5 +119,4 @@ public class Log  {
     public void w(final String message, final Throwable tr,  Object...args) {
         Log.d(mTag, message, tr, args);
     }
-
 }

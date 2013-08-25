@@ -1,0 +1,25 @@
+package org.quuux.eyecandy;
+
+import android.content.Context;
+import org.quuux.orm.Database;
+
+public class EyeCandyDatabase extends Database {
+
+    private static final String NAME = "eyecandy-new.db";
+    private static final int VERSION = 2;
+
+    private static EyeCandyDatabase instance = null;
+
+    protected EyeCandyDatabase(final Context context, final String name, final int version) {
+        super(context, name, version);
+    }
+
+    public static EyeCandyDatabase getInstance(final Context context) {
+        if (instance == null) {
+            instance = new EyeCandyDatabase(context, NAME, VERSION);
+        }
+
+        return instance;
+    }
+}
+

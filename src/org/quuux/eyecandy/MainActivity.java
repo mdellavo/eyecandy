@@ -1,19 +1,25 @@
 package org.quuux.eyecandy;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.Window;
 import android.view.WindowManager;
+import org.quuux.orm.Database;
 
 public class MainActivity extends Activity {
 
-    private static final String TAG = "MainActivity";
-    private static final int INTERVAL = 5 * 1000;
+    static {
+        Database.attach(Image.class);
+    }
 
-    protected EyeCandy eyeCandy;
+    private static final String TAG = "MainActivity";
+
+    private BurnsView mBurnsView;
+    private ImageAdapter mAdapter;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -22,27 +28,31 @@ public class MainActivity extends Activity {
 
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                             WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        setContentView(R.layout.main);
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         View v = findViewById(android.R.id.content);
         v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
 
-        eyeCandy = new EyeCandy(this, INTERVAL);
-        eyeCandy.attach((TextView)findViewById(R.id.label), 
-                        (BurnsView)findViewById(R.id.image));
-    }
+        mBurnsView = new BurnsView(this);
+        setContentView(mBurnsView);
+
+        mAdapter = new ImageAdapter(this);
+        mBurnsView.setAdapter(mAdapter);
+
+        final Intent intent = new Intent(this, ScrapeService.class);
+        startService(intent);
+
+  }
 
     @Override
     public void onResume() {
         super.onResume();
-        eyeCandy.startFlipping();
+        mBurnsView.startAnimation();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        eyeCandy.stopFlipping();
+        mBurnsView.stopAnimation();
     }
 }

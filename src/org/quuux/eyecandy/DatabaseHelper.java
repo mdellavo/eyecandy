@@ -106,7 +106,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
                 inserter.bind(source, image.getSource().toString());
                 inserter.bind(url, image.getUrl());
-                inserter.bind(source_url, image.getSourceUrl());
+                //inserter.bind(source_url, image.getSourceUrl());
                 inserter.bind(title, image.getTitle());
                 inserter.bind(status, image.getStatus().toString());
                 inserter.bind(times_shown, image.getTimesShown());
@@ -135,12 +135,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         if (!cursor.moveToFirst())
             return null;
 
-        Image rv = Image.from(cursor);
+        //Image rv = Image.from(cursor);
 
         cursor.close();
         db.close();
 
-        return rv;
+        return null;
     }
 
 

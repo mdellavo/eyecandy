@@ -107,7 +107,7 @@ class ScrapeRedditTask extends AsyncTask<String, Integer, Integer> {
                     mLog.e("image container does not have dat property: %s", image_container);
                 }
 
-                Image image = Image.fromReddit(image_json);
+                Image image = null;//Image.fromReddit(image_json);
 
                 if (image != null) {
                     images.add(image);

@@ -2,31 +2,23 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.content.Intent;
-import android.os.Environment;
 import android.os.Handler;
 import android.net.Uri;
 import android.support.v4.util.LruCache;
 import android.view.View;
 import android.view.MotionEvent;
-import android.widget.ImageView;
 import android.widget.TextView;
-import android.view.animation.AnimationUtils;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
-import android.view.animation.DecelerateInterpolator;
 import android.graphics.Bitmap;
-import android.graphics.Rect;
-import android.graphics.Point;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.TransitionDrawable;
 import android.animation.Animator;
-import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.AnimatorListenerAdapter;
 import com.android.volley.RequestQueue;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.*;
+import org.quuux.eyecandy.utils.OkHttpStack;
+import org.quuux.orm.*;
 
 import java.util.Random;
 
@@ -37,58 +29,9 @@ public class EyeCandy
 
     private static final Log mLog = new Log(EyeCandy.class);
 
-    private static final String SUBREDDITS[] = {
-        "earthporn",
-        "villageporn",
-        "cityporn",
-         "spaceporn",
-         "waterporn",
-         "abandonedporn",
-         "animalporn",
-         "humanporn",
-         "botanicalporn",
-         "adrenalineporn",
-         "destructionporn",
-         "movieposterporn",
-         "albumartporn",
-         "machineporn",
-         //"newsporn",
-         "geekporn",
-         "bookporn",
-         //"mapporn",
-         "adporn",
-         "designporn",
-         "roomporn",
-         //"militaryporn",
-         //"historyporn",
-         //"quotesporn",
-         "skyporn",
-         "fireporn",
-         "infrastructureporn",
-         "macroporn",
-         "instrumentporn",
-         "climbingporn",
-         "architectureporn",
-         "artporn",
-         "cemeteryporn",
-         //"carporn",
-         "fractalporn",
-         "exposureporn",
-         //"gunporn",
-         //"culinaryporn",
-         "dessertporn",
-         "agricultureporn",
-         "boatporn",
-        "geologyporn",
-        "futureporn",
-        "winterporn",
-        "JoshuaTree",
-        "NZPhotos",
-        "EyeCandy",
-        "ruralporn",
-        "spaceart"
-        //"foodporn"
-    };
+    static {
+        Database.attach(Image.class);
+    }
 
     class BitmapLruCache extends LruCache<String, Bitmap> implements ImageLoader.ImageCache {
 
@@ -107,17 +50,33 @@ public class EyeCandy
         }
     }
 
-    protected Image current;
+    private static class ImageHolder {
+        public long timestamp;
+        public Image image;
+        public Bitmap bitmap;
+
+        ImageHolder(final long timestamp, final Image image, final Bitmap bitmap) {
+            this.timestamp = timestamp;
+            this.image = image;
+            this.bitmap = bitmap;
+        }
+    }
+
+    private final EyeCandyDatabase mDatabase;
+
+    private long mLastFlip;
     protected TextView mLabel;
     protected BurnsView mView;
     protected Handler mHandler;
-    protected Context context;
-    protected int interval;
-    protected int tick = 0;
+    protected Context mContext;
+    protected int mInterval;
+    protected int mTick = 0;
     protected Animator mCurrentAnimator;
     protected boolean mLoading = false;
     protected boolean mRunning = false;
     protected Random mRandom = new Random();
+
+    protected ImageHolder mCurrent, mNext;
 
     private RequestQueue mRequestQueue;
     private ImageLoader mImageLoader;
@@ -126,13 +85,6 @@ public class EyeCandy
             @Override
             public void run() {
                 flipImage();
-            }
-        };
-
-    protected Runnable mImageScraper = new Runnable() {
-            @Override
-            public void run() {
-                Tasks.scrapeReddit(context, SUBREDDITS, EyeCandy.this);
             }
         };
 
@@ -171,13 +123,15 @@ public class EyeCandy
     GestureDetector mGestureDetector;
 
     public EyeCandy(Context context, int interval) {
-        this.context = context;
-        this.interval = interval;
+        this.mContext = context;
+        this.mInterval = interval;
 
-        mRequestQueue = Volley.newRequestQueue(context);
+        mDatabase = EyeCandyDatabase.getInstance(context);
+
+        mRequestQueue = Volley.newRequestQueue(context, new OkHttpStack());
         mImageLoader = new ImageLoader(mRequestQueue, new BitmapLruCache(3));
 
-        mGestureDetector = new GestureDetector(this.context, mGestureListener, mHandler);
+        mGestureDetector = new GestureDetector(this.mContext, mGestureListener, mHandler);
     }
 
 
@@ -191,8 +145,6 @@ public class EyeCandy
         mView.setOnTouchListener(this);
 
         flipImage();
-        
-        mHandler.post(mImageScraper);
     }
 
     public boolean onTouch(View view, MotionEvent event)
@@ -245,18 +197,25 @@ public class EyeCandy
         }
 
         mLoading = true;
-        Tasks.nextImage(this.context, this);
+
+        final Session session = mDatabase.createSession();
+        session.query(Image.class).orderBy("times_shown, RANDOM()").first(new FetchListener<Image>() {
+            @Override
+            public void onResult(final Image image) {
+                nextImage(image);
+            }
+        });
+
     }
 
     public void fetchImage(final Image image) {
-        final int width = Math.min(mView.getMeasuredWidth() * 2, mView.getMaxImageWidth());
-        final int height = Math.min(mView.getMeasuredHeight() * 2, mView.getMaxImageHeight());
+        final int width = Math.min(mView.getMeasuredWidth() * 2, 0);
+        final int height = Math.min(mView.getMeasuredHeight() * 2, 0);
 
         mImageLoader.get(image.getUrl(), new ImageLoader.ImageListener() {
             @Override
             public void onResponse(ImageLoader.ImageContainer response, boolean isImmediate) {
                 mLoading = false;
-
                 showImage(image, response.getBitmap());
             }
 
@@ -295,51 +254,43 @@ public class EyeCandy
     
     public void showImage(Image image, Bitmap sampled) {
 
-
-
-        // At each tick:
+        // At each mTick:
         // if back exists, fade back then show and slide front
         // else show and slide front
         // swap front and back 
 
         if (image != null && sampled != null) {
-            mView.swapImage(sampled);
 
 
+
+            mCurrent = new ImageHolder(System.currentTimeMillis(), image, sampled);
+
+           //3 mView.swapImage(sampled);
+
+            mLastFlip = System.currentTimeMillis();
 
             mLabel.setText(image.getTitle());
             showLabel();
 
-            mLoading = false;
-            tick++;
+            mTick++;
 
-            Tasks.markImageShown(this.context, image);
+            Tasks.markImageShown(this.mContext, image);
         }
 
         mHandler.removeCallbacks(mImageFlipper);
-        mHandler.postDelayed(mImageFlipper, interval);
+        mHandler.postDelayed(mImageFlipper, mInterval);
     }
-    
+
     public void openImageSource() {
 
-        if (current == null) {
+        if (mCurrent == null) {
             mLog.e("current image is null?!");
             return;
         }
 
-        String url = current.getSourceUrl();
-        if (url == null) {
-            mLog.e("No source url? -> " + current.getTitle());
 
-            url = current.getUrl();
-            if (url == null) {
-                mLog.e("No url too? -> " + current.getTitle());
-                return;
-            }
-        }
-
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-        context.startActivity(i);
+        //Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        //mContext.startActivity(i);
     }
 
     public float randomRange(float min, float max) {
