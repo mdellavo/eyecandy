@@ -24,20 +24,15 @@ public class ImageAdapter  {
     private static final int HISTORY_SIZE = 4;
     private static final int PAGE_SIZE = 10;
 
-    class BitmapLruCache extends LruCache<String, Bitmap> implements ImageLoader.ImageCache {
-
-        public BitmapLruCache(int maxSize) {
-            super(maxSize);
-        }
+    class NoCache implements ImageLoader.ImageCache {
 
         @Override
         public Bitmap getBitmap(String url) {
-            return get(url);
+            return null;
         }
 
         @Override
         public void putBitmap(String url, Bitmap bitmap) {
-            put(url, bitmap);
         }
     }
 
@@ -58,7 +53,7 @@ public class ImageAdapter  {
         mContext = context;
         mDatabase = EyeCandyDatabase.getInstance(context);
         mRequestQueue = Volley.newRequestQueue(context);
-        mImageLoader = new ImageLoader(mRequestQueue, new BitmapLruCache(HISTORY_SIZE));
+        mImageLoader = new ImageLoader(mRequestQueue, new NoCache());
 
         final IntentFilter filter = new IntentFilter();
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
@@ -84,19 +79,18 @@ public class ImageAdapter  {
             fetchImage();
         } else {
             Log.d(TAG, "no images to load, deferring...");
-            mLoading = false;
-
             fillQueue();
         }
-
     }
 
     private void deliverResponse(final Image image, final Bitmap bitmap) {
-        mImages.remove(image);
-        mBitmaps.remove(image);
-        mListener.onImageLoaded(image, bitmap);
-        mListener = null;
-        mLoading = false;
+        if (mListener != null) {
+            mImages.remove(image);
+            mBitmaps.remove(image);
+            mListener.onImageLoaded(image, bitmap);
+            mListener = null;
+            mLoading = false;
+        }
     }
 
     // yeah...
@@ -111,14 +105,12 @@ public class ImageAdapter  {
     private void fillQueue() {
         final Session session = mDatabase.createSession();
 
-        final int num = PAGE_SIZE - mImages.size();
-
-        if (num < 1 || num > PAGE_SIZE)
+        if (mImages.size() > 0)
             return;
 
         Log.d(TAG, "filling queue");
 
-        session.query(Image.class).orderBy("timesShown, RANDOM()").limit(num).all(new QueryListener<Image>() {
+        session.query(Image.class).orderBy("timesShown, RANDOM()").limit(PAGE_SIZE).all(new QueryListener<Image>() {
             @Override
             public void onResult(final List<Image> images) {
 
@@ -127,8 +119,8 @@ public class ImageAdapter  {
 
                 mImages.addAll(images);
 
-                if (!mLoading && mListener != null) {
-                    Log.d(TAG, "delivering image to deferred listener");
+                if (mListener != null) {
+                    Log.d(TAG, "filled queue, fetching");
                     fetchImage();
                 }
 
@@ -147,16 +139,10 @@ public class ImageAdapter  {
 
     private void precache() {
 
-
-        dumpState();
-
         Log.d(TAG, "precache size = %d", mBitmaps.size());
 
         int i = 0;
-        while (mBitmaps.size() < PRECACHE_SIZE) {
-
-            if (i >= mImages.size())
-                break;
+        while (mBitmaps.size() < PRECACHE_SIZE && i < mImages.size()) {
 
             final Image image = mImages.get(i++);
 
@@ -191,7 +177,7 @@ public class ImageAdapter  {
                     Log.e(TAG, "error fetchimg image %s : %s", image.getUrl(), error.getMessage());
                     mImages.remove(image);
                     mBitmaps.remove(image);
-                    precache();
+                    fetchImage();
                 }
             }, mMaxWidth, mMaxHeight);
 
@@ -200,13 +186,15 @@ public class ImageAdapter  {
 
     private void fetchImage() {
 
-        final Image image = mImages.get(0);
 
-        Log.d(TAG, "fetching image %s", image.getUrl());
 
-        final Bitmap bitmap = mBitmaps.get(image);
-        if (bitmap != null) {
-            deliverResponse(image, bitmap);
+        for (Image image : mBitmaps.keySet()) {
+            final Bitmap bitmap = mBitmaps.get(image);
+
+            if (bitmap != null) {
+                deliverResponse(image, bitmap);
+                break;
+            }
         }
 
         precache();

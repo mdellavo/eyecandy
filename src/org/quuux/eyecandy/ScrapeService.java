@@ -105,7 +105,7 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
     public void onScrapeComplete(int numScraped) {
         mTaskCount--;
 
-        Log.d(TAG, "scrape complete: %d", numScraped);
+        //Log.d(TAG, "scrape complete: %d", numScraped);
 
         final Intent intent = new Intent(ACTION_SCRAPE_COMPLETE);
         sendBroadcast(intent);
