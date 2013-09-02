@@ -54,10 +54,6 @@ public class ImageAdapter  {
         mDatabase = EyeCandyDatabase.getInstance(context);
         mRequestQueue = Volley.newRequestQueue(context);
         mImageLoader = new ImageLoader(mRequestQueue, new NoCache());
-
-        final IntentFilter filter = new IntentFilter();
-        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
-        context.registerReceiver(mBroadcastReceiver, filter);
     }
 
     public void setMaxBitmapSize(final int width, final int height) {
@@ -102,7 +98,7 @@ public class ImageAdapter  {
         return mImages.remove(0);
     }
 
-    private void fillQueue() {
+    public void fillQueue() {
         final Session session = mDatabase.createSession();
 
         if (mImages.size() > 0)
@@ -200,18 +196,5 @@ public class ImageAdapter  {
         precache();
 
     }
-
-    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(final Context context, final Intent intent) {
-
-            final String action = intent.getAction();
-            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                fillQueue();
-            }
-
-        }
-    };
 
 }

@@ -11,38 +11,87 @@ public class BurnsView extends View {
 
     public static final Log mLog = new Log(BurnsView.class);
 
-    abstract class ImageHolder {
+    static abstract class ImageHolder {
 
         final Image image;
-        final int width, height, maxWidth, maxHeight;
         final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        final Matrix transformation = new Matrix();
+
+        final float zoomFactor = 2f;
+
+        final Rect orig = new Rect();
+        final Rect container = new Rect();
+        final Rect zoomed = new Rect();
+        final Rect fitted = new Rect();
+        final Rect frame = new Rect();
 
         int age;
         double animationProgress, transitionProgress;
 
-        public ImageHolder(final Image image, final int width, final int height, final int maxWidth, final int maxHeight) {
+        public ImageHolder(final Image image, final View parent, final int width, final int height) {
             this.image = image;
-            this.width = width;
-            this.height = height;
-            this.maxWidth = maxWidth;
-            this.maxHeight = maxHeight;
+
+            orig.set(0, 0, width, height);
+            container.set(0, 0, parent.getWidth(), parent.getHeight());
 
             paint.setAlpha(0);
+
+            mLog.d("orig rect = %s (ar = %s)", orig, getAspectRatio(orig));
+            mLog.d("container rect = %s (ar = %s)", container, getAspectRatio(container));
+
+            fit(fitted);
+            zoom(fitted, zoomed, zoomFactor);
+
+            mLog.d("fitted rect = %s (ar = %s | scale = %.03f, %.03f)", fitted, getAspectRatio(fitted), getScaleX(fitted, orig), getScaleY(fitted, orig));
+            mLog.d("zoomed rect = %s (ar = %s | scale = %.03f, %.03f)", zoomed, getAspectRatio(zoomed), getScaleX(zoomed, orig), getScaleY(zoomed, orig));
         }
 
-        double getAspectRatio() {
-            return (double)width / (double)height;
+        double getAspectRatio(final Rect rect) {
+            return (double)rect.width() / (double)rect.height();
         }
 
-        boolean isWidthConstrained() {
-            return width > maxWidth;
+        void fit(final Rect dest) {
+            final double imageAspectRatio = getAspectRatio(orig);
+            final double containerAspectRatio = getAspectRatio(container);
+
+            final boolean heightContrained = containerAspectRatio > imageAspectRatio;
+
+            final int scaledWidth = heightContrained ? orig.width() * container.height()/orig.height() : container.width();
+            final int scaledHeight = heightContrained ? container.height() : orig.height() * container.width() / orig.width();
+
+            final int top = (container.height() - scaledHeight) / 2;
+            final int left = (container.width() - scaledWidth) / 2;
+
+            dest.set(left, top, left + scaledWidth, top + scaledHeight);
         }
 
-        boolean isHeightConstrained() {
-            return height > maxHeight;
+        float getTranslateX(final Rect a, final Rect b) {
+            return (b.width() - a.width()) / 2.0f;
         }
 
-        void animate() {
+        float getTranslateY(final Rect a, final Rect b) {
+            return (b.height() - a.height()) / 2.0f;
+        }
+
+        float getScaleX(final Rect a, final Rect b) {
+            return (float)a.width() / (float)b.width();
+        }
+
+        float getScaleY(final Rect a, final Rect b) {
+            return (float)a.height() / (float)b.height();
+        }
+
+        float lerp(float a, float b, float t) {
+            return a + (b - a) * t;
+        }
+
+        void zoom(final Rect src, final Rect dest, final double scale) {
+            final int scaledWidth = (int)Math.round((src.width() * scale) / 2.0f);
+            final int scaledHeight = (int)Math.round((src.height() * scale) / 2.0f);
+            final int centerX = src.centerX();
+            final int centerY = src.centerY();
+            dest.set(centerX - scaledWidth, centerY - scaledHeight, centerX + scaledWidth, centerY + scaledHeight);
         }
 
         void transition() {
@@ -53,82 +102,43 @@ public class BurnsView extends View {
 
         void onDraw(final Canvas canvas, final int elapsed) {
 
+            transformation.reset();
+            canvas.save();
+
             age += elapsed;
 
-            if (transitionProgress > 0) {
+            animationProgress = (double)age / (double)ANIMATION_TIME;
+
+            if (age < TRANSITION_TIME) {
+                transitionProgress = (double)age / (double)TRANSITION_TIME;
                 transition();
             }
 
-            animate();
+            transformation.preTranslate(
+                    lerp(getTranslateX(fitted, container), getTranslateX(zoomed, orig), (float)animationProgress),
+                    lerp(getTranslateY(fitted, container), getTranslateY(zoomed, orig), (float)animationProgress)
+            );
+            transformation.preScale(
+                    lerp(getScaleX(fitted, orig), getScaleX(zoomed, orig), (float)animationProgress),
+                    lerp(getScaleY(fitted, orig), getScaleY(zoomed, orig), (float)animationProgress)
+            );
 
-            canvas.save();
+            canvas.setMatrix(transformation);
+
             draw(canvas);
+
             canvas.restore();
         }
 
-        void setTransitionProgress(final double progress) {
-            transitionProgress = progress;
-        }
-
-        void setAnimationProgress(final double progress) {
-            animationProgress = progress;
-        }
     }
 
-    class BitmapHolder extends ImageHolder {
+    static class BitmapHolder extends ImageHolder {
 
         final Bitmap bitmap;
-        final Rect src = new Rect();
-        final Rect dest = new Rect();
 
-        boolean transitioning = false;
-
-        public BitmapHolder(final Image image, final Bitmap bitmap, final int maxWidth, final int maxHeight) {
-            super(image, bitmap.getWidth(), bitmap.getHeight(), maxWidth, maxHeight);
+        public BitmapHolder(final Image image, final Bitmap bitmap, final View parent) {
+            super(image, parent, bitmap.getWidth(), bitmap.getHeight());
             this.bitmap = bitmap;
-            mLog.d("bitmap size = %dx%d", width, height);
-        }
-
-        @Override
-        void animate() {
-            super.animate();
-//            final double animationProgress = Math.min((double) age / (double) ANIMATION_TIME, 1.0f);
-
-//            if (isWidthConstrained() || isHeightConstrained()) {
-//
-//
-//                final int remainingWidth =  Math.max(width - maxWidth, 0);
-//                final int remainingHeight = Math.max(height - maxHeight, 0);
-//
-//                dest.set(0, 0, maxWidth, maxHeight);
-//
-//                final int offsetX = Math.max((int)Math.round(remainingWidth * animationProgress), 0);
-//                final int offsetY = Math.max((int)Math.round(remainingHeight * animationProgress), 0);
-//
-//                //mLog.d("animating %f (%d / %d)  - %d,%d -> %d, %d", animationProgress, age, ANIMATION_TIME, offsetX, offsetY, viewWidth + offsetX, viewHeight + offsetY);
-//                src.set(offsetX, offsetY, maxWidth + offsetX, maxHeight + offsetY);
-//
-//            } else {
-//                final double scaleWidth = (double)maxWidth / (double)width;
-//                final double scaleHeight = (double)maxHeight / (double)height;
-//
-//                final double scale = Math.min(scaleWidth, scaleHeight);
-//                final int scaledWidth = (int)Math.round(width * scale);
-//                final int scaledHeight = (int)Math.round(height * scale);
-//
-//                //mLog.d("scaling %dx%d by %f to %dx%d", width, height, scale, scaledWidth, scaledHeight);
-//                final int remainingWidth =  Math.max(maxWidth - scaledWidth, 0);
-//                final int remainingHeight = Math.max(maxHeight - scaledHeight, 0);
-//
-//
-//
-//                final int offsetX = remainingWidth / 2;
-//                final int offsetY = remainingHeight / 2;
-//
-//                src.set(0, 0, width, height);
-//                dest.set(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
-//
-//            }
         }
 
         @Override
@@ -138,18 +148,13 @@ public class BurnsView extends View {
 
     }
 
-    class MovieHolder extends ImageHolder {
+    static class MovieHolder extends ImageHolder {
 
         final Movie movie;
 
-        public MovieHolder(final Image image, final Movie movie, final int maxWidth, final int maxHeight) {
-            super(image, movie.width(), movie.height(), maxWidth, maxHeight);
+        public MovieHolder(final Image image, final Movie movie, final View parent) {
+            super(image, parent, movie.width(), movie.height());
             this.movie = movie;
-        }
-
-        @Override
-        void animate() {
-            movie.setTime((int)age % movie.duration());
         }
 
         @Override
@@ -158,10 +163,15 @@ public class BurnsView extends View {
         }
     }
 
-    class TextHolder extends ImageHolder {
+    static class TextHolder extends ImageHolder {
 
-        public TextHolder() {
-            super(null, 0, 0, 0, 0);
+        String text;
+
+        public TextHolder(final View parent) {
+            super(null, parent, parent.getWidth(), parent.getHeight());
+
+            text = parent.getContext().getString(R.string.wait);
+
             paint.setColor(Color.DKGRAY);
             paint.setTextAlign(Paint.Align.CENTER);
             paint.setTextSize(72);
@@ -170,8 +180,13 @@ public class BurnsView extends View {
         }
 
         @Override
+        void onDraw(final Canvas canvas, final int elapsed) {
+            draw(canvas);
+        }
+
+        @Override
         void draw(final Canvas canvas) {
-            canvas.drawText(getContext().getString(R.string.wait), getWidth()/2, getHeight()/2, paint);
+            canvas.drawText(text, container.width() / 2, container.height() / 2, paint);
         }
 
     }
@@ -189,12 +204,11 @@ public class BurnsView extends View {
     private ImageHolder mPrevious;
     private ImageHolder mCurrent;
     private ImageHolder mNext;
-    private ImageHolder mWaitText = new TextHolder();
+    private ImageHolder mWaitText;
     private boolean loading = false;
 
 
     private long mLast;
-    private int mAnimationTime;
 
     private ImageAdapter mAdapter;
 
@@ -227,7 +241,7 @@ public class BurnsView extends View {
     }
 
     private void init() {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             mMaxBitmapHeight = MAX_BITMAP_HEIGHT;
@@ -239,7 +253,6 @@ public class BurnsView extends View {
 
     public void setAdapter(ImageAdapter adapter) {
         mAdapter = adapter;
-        mAnimationTime = TRANSITION_TIME;
     }
 
     public void nextImage() {
@@ -256,10 +269,10 @@ public class BurnsView extends View {
 
                 Log.d(TAG, "got next image %s", image);
 
-                mNext = new BitmapHolder(image, bitmap, getWidth(), getHeight());
+                mNext = new BitmapHolder(image, bitmap, BurnsView.this);
 
                 if (mCurrent == null)
-                    mAnimationTime = TRANSITION_TIME;
+                    flipImage();
 
                 loading = false;
             }
@@ -273,7 +286,7 @@ public class BurnsView extends View {
                 if (image == null || bitmap == null)
                     return;
 
-                mPrevious = new BitmapHolder(image, bitmap, getWidth(), getHeight());
+                mPrevious = new BitmapHolder(image, bitmap, BurnsView.this);
             }
         });
     }
@@ -284,9 +297,7 @@ public class BurnsView extends View {
         mNext = null;
 
         mCurrent.paint.setAlpha(255);
-        mAnimationTime = ANIMATION_TIME;
     }
-
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -311,67 +322,31 @@ public class BurnsView extends View {
         if (mNext == null && !loading)
             nextImage();
 
+
+        if (mWaitText == null)
+            mWaitText = new TextHolder(this);
+
         long now = System.currentTimeMillis();
         int elapsed = (int)(now - mLast);
         mLast = now;
 
-        mAnimationTime = Math.max(mAnimationTime - elapsed, 0);
-
-        //mLog.d("mAnimationTime = %s | elapsed = %s", mAnimationTime, elapsed);
-
-        final boolean transitioning = mAnimationTime <= TRANSITION_TIME;
+        final boolean transitioning = mCurrent != null && mNext != null && (ANIMATION_TIME - mCurrent.age) <= TRANSITION_TIME;
 
         int textAlpha = 0;
 
-        if (transitioning) {
-
-            if (!loading && mNext == null)
-                nextImage();
-
-            final double transitionProgress = 1.0f - ((double)(TRANSITION_TIME - mAnimationTime) / (double)TRANSITION_TIME);
-
-            //mLog.d("transitioning - cur = %.02f / next = %.02f", transitionProgress, 1.0f - transitionProgress);
-
-            if (mCurrent != null)
-                mCurrent.setTransitionProgress(transitionProgress);
-            else
-                mWaitText.setTransitionProgress(transitionProgress);
-
-
-            if (mNext != null)
-                mNext.setTransitionProgress(1.0f - transitionProgress);
-            else
-                mWaitText.setTransitionProgress(1.0f - transitionProgress);
-
-        }
-
-        final double animationProgress = (double)(ANIMATION_TIME - mAnimationTime) / (double)ANIMATION_TIME;
-        //mLog.d("animating - %.02f", animationProgress);
-
         if (mCurrent != null) {
-            mCurrent.setAnimationProgress(animationProgress);
             mCurrent.onDraw(canvas, elapsed);
         } else {
             mWaitText.onDraw(canvas, elapsed);
         }
 
         if (transitioning) {
-            if (mNext != null) {
-                //mNext.setAnimationProgress(1.0f - animationProgress);
-                mNext.onDraw(canvas, elapsed);
-            } else {
-                mWaitText.onDraw(canvas, elapsed);
-            }
+            mNext.onDraw(canvas, elapsed);
         }
 
-
-        if (mAnimationTime == 0) {
-            if ( mNext != null) {
-                mLog.d("Animation complete, flipping");
-                flipImage();
-            } else if (!loading) {
-                nextImage();
-            }
+        if (mCurrent != null && mNext != null && ANIMATION_TIME - mCurrent.age <= 0) {
+            mLog.d("Animation complete, flipping");
+            flipImage();
         }
 
         final long t2 = System.currentTimeMillis();
@@ -393,10 +368,6 @@ public class BurnsView extends View {
     public void stopAnimation() {
         mRunning = false;
         mHandler.removeCallbacks(mAnimator);
-    }
-
-    public double getAspectRatio() {
-        return (double)getWidth() / (double)getHeight();
     }
 
 }

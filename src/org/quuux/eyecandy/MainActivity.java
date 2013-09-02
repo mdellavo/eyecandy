@@ -1,7 +1,10 @@
 package org.quuux.eyecandy;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
@@ -47,6 +50,11 @@ public class MainActivity extends Activity {
     @Override
     public void onResume() {
         super.onResume();
+
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+        registerReceiver(mBroadcastReceiver, filter);
+
         mBurnsView.startAnimation();
     }
 
@@ -54,5 +62,19 @@ public class MainActivity extends Activity {
     public void onPause() {
         super.onPause();
         mBurnsView.stopAnimation();
+        unregisterReceiver(mBroadcastReceiver);
     }
+
+    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+
+            final String action = intent.getAction();
+            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                mAdapter.fillQueue();
+            }
+
+        }
+    };
 }
