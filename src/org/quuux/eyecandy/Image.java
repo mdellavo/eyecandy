@@ -62,18 +62,17 @@ public class Image implements Entity {
     @Column()
     private boolean animated;
 
-
-
-    protected Image(final Source source, final String url, final String title, final Status status, final int timesShown) {
+    protected Image(final Source source, final String url, final String title, final boolean animated, final Status status, final int timesShown) {
         this.source = source;
         this.url = url;
         this.title = title;
+        this.animated = animated;
         this.status = status;
         this.timesShown = timesShown;
     }
 
-    public static Image fromImgur(final String url, final String title) {
-        return new Image(Source.IMGUR, url, title, Status.NOT_FETCHED, 0);
+    public static Image fromImgur(final String url, final String title, final boolean animated) {
+        return new Image(Source.IMGUR, url, title, animated, Status.NOT_FETCHED, 0);
     }
 
 
@@ -150,7 +149,12 @@ public class Image implements Entity {
 
     public boolean isSampled(Context context) {
         return new File(getSampledImagePath(context)).exists();
-    }    
+
+    }
+    public boolean isAnimated() {
+        return animated;
+    }
+
 
 }
 

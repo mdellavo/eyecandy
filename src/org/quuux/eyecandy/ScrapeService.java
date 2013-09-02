@@ -26,56 +26,59 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
     }
 
     private static final String SUBREDDITS[] = {
-            "earthporn",
-            "villageporn",
-            "cityporn",
-            "spaceporn",
-            "waterporn",
-            "abandonedporn",
-            "animalporn",
-            "humanporn",
-            "botanicalporn",
-            "adrenalineporn",
-            "destructionporn",
-            "movieposterporn",
-            "albumartporn",
-            "machineporn",
-            //"newsporn",
-            "geekporn",
-            "bookporn",
-            //"mapporn",
-            "adporn",
-            "designporn",
-            "roomporn",
-            //"militaryporn",
-            //"historyporn",
-            //"quotesporn",
-            "skyporn",
-            "fireporn",
-            "infrastructureporn",
-            "macroporn",
-            "instrumentporn",
-            "climbingporn",
-            "architectureporn",
-            "artporn",
-            "cemeteryporn",
-            //"carporn",
-            "fractalporn",
-            "exposureporn",
-            //"gunporn",
-            //"culinaryporn",
-            "dessertporn",
-            "agricultureporn",
-            "boatporn",
-            "geologyporn",
-            "futureporn",
-            "winterporn",
-            "JoshuaTree",
-            "NZPhotos",
-            "EyeCandy",
-            "ruralporn",
-            "spaceart"
-            //"foodporn"
+
+            "Cinemagraphs",
+
+//            "earthporn",
+//            "villageporn",
+//            "cityporn",
+//            "spaceporn",
+//            "waterporn",
+//            "abandonedporn",
+//            "animalporn",
+//            "humanporn",
+//            "botanicalporn",
+//            "adrenalineporn",
+//            "destructionporn",
+//            "movieposterporn",
+//            "albumartporn",
+//            "machineporn",
+//            //"newsporn",
+//            "geekporn",
+//            "bookporn",
+//            //"mapporn",
+//            "adporn",
+//            "designporn",
+//            "roomporn",
+//            //"militaryporn",
+//            //"historyporn",
+//            //"quotesporn",
+//            "skyporn",
+//            "fireporn",
+//            "infrastructureporn",
+//            "macroporn",
+//            "instrumentporn",
+//            "climbingporn",
+//            "architectureporn",
+//            "artporn",
+//            "cemeteryporn",
+//            //"carporn",
+//            "fractalporn",
+//            "exposureporn",
+//            //"gunporn",
+//            //"culinaryporn",
+//            "dessertporn",
+//            "agricultureporn",
+//            "boatporn",
+//            "geologyporn",
+//            "futureporn",
+//            "winterporn",
+//            "JoshuaTree",
+//            "NZPhotos",
+//            "EyeCandy",
+//            "ruralporn",
+//            "spaceart"
+//            //"foodporn"
     };
 
     private RequestQueue mRequestQueue;
@@ -131,9 +134,9 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
                         final Session session = mDatabase.createSession();
 
                         for(final ImgurImage i : response.data) {
-                            //Log.d(TAG, "scraped image - %s", i.getUrl());
+                            Log.d(TAG, "scraped image - %s - animated = %s / %s", i.getUrl(), i.animated, i.isAnimated());
 
-                            final Image img =  Image.fromImgur(i.getUrl(), i.title);
+                            final Image img =  Image.fromImgur(i.getUrl(), i.title, i.isAnimated());
                             session.add(img);
 
                         }
@@ -168,6 +171,10 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
             return String.format("http://imgur.com/%s%s", hash, ext);
         }
 
+
+        public boolean isAnimated() {
+            return "1".equals(animated);
+        }
     }
 
     private static class ImgurImageList {

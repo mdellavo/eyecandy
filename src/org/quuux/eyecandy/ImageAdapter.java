@@ -5,11 +5,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
+import android.graphics.Movie;
 import android.support.v4.util.LruCache;
+import com.android.volley.Request;
 import com.android.volley.RequestQueue;
+import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
+import com.android.volley.toolbox.ImageRequest;
 import com.android.volley.toolbox.Volley;
+import org.quuux.eyecandy.utils.MovieRequest;
 import org.quuux.orm.QueryListener;
 import org.quuux.orm.Session;
 
@@ -41,11 +46,9 @@ public class ImageAdapter  {
     private final RequestQueue mRequestQueue;
 
     private int mMaxWidth = 2048, mMaxHeight = 2048;
-    private ImageLoader mImageLoader;
-
     private boolean mLoading = false;
     private List<Image> mImages = new LinkedList<Image>();
-    private Map<Image, Bitmap> mBitmaps = new HashMap<Image, Bitmap>();
+    private Map<Image, Object> mBitmaps = new HashMap<Image, Object>();
 
     private ImageLoadedListener mListener = null;
 
@@ -53,7 +56,6 @@ public class ImageAdapter  {
         mContext = context;
         mDatabase = EyeCandyDatabase.getInstance(context);
         mRequestQueue = Volley.newRequestQueue(context);
-        mImageLoader = new ImageLoader(mRequestQueue, new NoCache());
     }
 
     public void setMaxBitmapSize(final int width, final int height) {
@@ -79,11 +81,11 @@ public class ImageAdapter  {
         }
     }
 
-    private void deliverResponse(final Image image, final Bitmap bitmap) {
+    private void deliverResponse(final Image image, final Object object) {
         if (mListener != null) {
             mImages.remove(image);
             mBitmaps.remove(image);
-            mListener.onImageLoaded(image, bitmap);
+            mListener.onImageLoaded(image, object);
             mListener = null;
             mLoading = false;
         }
@@ -109,6 +111,8 @@ public class ImageAdapter  {
         session.query(Image.class).orderBy("timesShown, RANDOM()").limit(PAGE_SIZE).all(new QueryListener<Image>() {
             @Override
             public void onResult(final List<Image> images) {
+
+                Log.d(TAG, "images = %s", images);
 
                 if (images == null)
                     return;
@@ -149,25 +153,7 @@ public class ImageAdapter  {
 
             Log.d(TAG, "precaching image %s", image.getUrl());
 
-
-            mImageLoader.get(image.getUrl(), new ImageLoader.ImageListener() {
-                @Override
-                public void onResponse(final ImageLoader.ImageContainer response, final boolean isImmediate) {
-                    final Bitmap bitmap = response.getBitmap();
-
-                    if (bitmap == null)
-                        return;
-
-                    mBitmaps.put(image, bitmap);
-
-                    Log.d(TAG, "fetched image %s (isImmediate = %s | bitmap = %s) ", image.getUrl(), isImmediate, bitmap);
-
-                    if (mListener != null) {
-                        Log.d(TAG, "delivering fetched image %s to deferred listener", image.getUrl());
-                        fetchImage();
-                    }
-                }
-
+            final Response.ErrorListener errorListener = new Response.ErrorListener() {
                 @Override
                 public void onErrorResponse(final VolleyError error) {
                     Log.e(TAG, "error fetchimg image %s : %s", image.getUrl(), error.getMessage());
@@ -175,7 +161,50 @@ public class ImageAdapter  {
                     mBitmaps.remove(image);
                     fetchImage();
                 }
-            }, mMaxWidth, mMaxHeight);
+            };
+
+            Request request = null;
+
+            if (image.isAnimated() || image.getUrl().endsWith(".gif"))
+                request = new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
+                    @Override
+                    public void onResponse(final Movie movie) {
+                        if (movie == null)
+                            return;
+
+                        mBitmaps.put(image, movie);
+
+                        Log.d(TAG, "fetched movie %s", movie);
+
+                        if (mListener != null) {
+                            Log.d(TAG, "delivering fetched movie %s to deferred listener", image.getUrl());
+                            fetchImage();
+                        }
+                    }
+                }, errorListener);
+            else
+
+                request = new ImageRequest(image.getUrl(), new Response.Listener<Bitmap>() {
+                    @Override
+                    public void onResponse(final Bitmap bitmap) {
+
+
+                        if (bitmap == null)
+                            return;
+
+                        mBitmaps.put(image, bitmap);
+
+                        Log.d(TAG, "fetched image %s (bitmap = %s) ", image.getUrl(), bitmap);
+
+                        if (mListener != null) {
+                            Log.d(TAG, "delivering fetched image %s to deferred listener", image.getUrl());
+                            fetchImage();
+                        }
+
+                    }
+                }, mMaxWidth, mMaxHeight, null, errorListener);
+
+            mRequestQueue.add(request);
 
         }
     }
@@ -185,10 +214,12 @@ public class ImageAdapter  {
 
 
         for (Image image : mBitmaps.keySet()) {
-            final Bitmap bitmap = mBitmaps.get(image);
+            final Object obj = mBitmaps.get(image);
 
-            if (bitmap != null) {
-                deliverResponse(image, bitmap);
+            if (obj != null) {
+
+                deliverResponse(image, obj);
+
                 break;
             }
         }

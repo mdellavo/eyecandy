@@ -113,7 +113,7 @@ public class BurnsView extends View {
             } else if (age > ANIMATION_TIME - TRANSITION_TIME) {
                 final double transitionProgress = (double)(age - (ANIMATION_TIME - TRANSITION_TIME)) / (double)TRANSITION_TIME;
                 //mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
-                transition(1.0f  - transitionProgress);
+                transition(1.0f - transitionProgress);
             }
 
             transformation.preTranslate(
@@ -143,6 +143,8 @@ public class BurnsView extends View {
             this.bitmap = bitmap;
         }
 
+
+
         @Override
         void draw(final Canvas canvas) {
             canvas.drawBitmap(bitmap, 0, 0, paint);
@@ -153,15 +155,23 @@ public class BurnsView extends View {
     static class MovieHolder extends ImageHolder {
 
         final Movie movie;
+        final Canvas canvas;
+        final Bitmap bitmap;
 
         public MovieHolder(final Image image, final Movie movie, final View parent) {
             super(image, parent, movie.width(), movie.height());
             this.movie = movie;
+            bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888);
+            canvas = new Canvas(bitmap);
         }
 
         @Override
         void draw(final Canvas canvas) {
-            movie.draw(canvas, 0, 0, paint);
+            movie.setTime(age % movie.duration());
+            movie.draw(this.canvas, 0, 0, paint);
+
+            canvas.drawBitmap(bitmap, 0, 0, paint);
+
         }
     }
 
@@ -262,8 +272,8 @@ public class BurnsView extends View {
 
         mAdapter.nextImage(new ImageLoadedListener() {
             @Override
-            public void onImageLoaded(final Image image, final Bitmap bitmap) {
-                if (image == null || bitmap == null ) {
+            public void onImageLoaded(final Image image, final Object object) {
+                if (image == null || object == null) {
                     mLog.d("error fetching next image, trying again");
                     nextImage();
                     return;
@@ -271,7 +281,10 @@ public class BurnsView extends View {
 
                 Log.d(TAG, "got next image %s", image);
 
-                mNext = new BitmapHolder(image, bitmap, BurnsView.this);
+                if (object instanceof Bitmap)
+                    mNext = new BitmapHolder(image, (Bitmap)object, BurnsView.this);
+                else if (object instanceof Movie)
+                    mNext = new MovieHolder(image, (Movie)object, BurnsView.this);
 
                 if (mCurrent == null)
                     flipImage();
@@ -284,11 +297,10 @@ public class BurnsView extends View {
     public void previousImage() {
         mAdapter.previousImage(new ImageLoadedListener() {
             @Override
-            public void onImageLoaded(Image image, Bitmap bitmap) {
-                if (image == null || bitmap == null)
+            public void onImageLoaded(final Image image, final Object object) {
+                if (image == null || object == null)
                     return;
 
-                mPrevious = new BitmapHolder(image, bitmap, BurnsView.this);
             }
         });
     }
@@ -344,9 +356,13 @@ public class BurnsView extends View {
             mNext.onDraw(canvas, elapsed);
         }
 
-        if (mCurrent != null && mNext != null && ANIMATION_TIME - mCurrent.age <= 0) {
-            mLog.d("Animation complete, flipping");
-            flipImage();
+        if (mCurrent != null && ANIMATION_TIME - mCurrent.age <= 0) {
+            if (mNext != null) {
+                mLog.d("Animation complete, flipping");
+                flipImage();
+            } else {
+                mLog.d("animation expired and nothing to do ! (current = %s, next = %s)", mCurrent, mNext);
+            }
         }
 
         final long t2 = System.currentTimeMillis();
