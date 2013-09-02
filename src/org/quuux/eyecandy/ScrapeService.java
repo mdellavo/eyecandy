@@ -134,11 +134,8 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
                         final Session session = mDatabase.createSession();
 
                         for(final ImgurImage i : response.data) {
-                            Log.d(TAG, "scraped image - %s - animated = %s / %s", i.getUrl(), i.animated, i.isAnimated());
-
                             final Image img =  Image.fromImgur(i.getUrl(), i.title, i.isAnimated());
                             session.add(img);
-
                         }
 
                         session.commit();

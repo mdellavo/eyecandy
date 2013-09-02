@@ -165,7 +165,7 @@ public class ImageAdapter  {
 
             Request request = null;
 
-            if (image.isAnimated() || image.getUrl().endsWith(".gif"))
+            if (image.isAnimated())
                 request = new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
                     @Override
                     public void onResponse(final Movie movie) {
