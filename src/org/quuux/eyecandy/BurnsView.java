@@ -108,17 +108,17 @@ public class BurnsView extends View {
 
             if (age < TRANSITION_TIME) {
                 final double transitionProgress = (double)age / (double)TRANSITION_TIME;
-                mLog.d("IN >>> progress  - animation = %.03f | transition = %.03f", animationProgress, transitionProgress);
+                //mLog.d("IN >>> progress  - animation = %.03f | transition = %.03f", animationProgress, transitionProgress);
                 transition(transitionProgress);
             } else if (age > ANIMATION_TIME - TRANSITION_TIME) {
                 final double transitionProgress = (double)(age - (ANIMATION_TIME - TRANSITION_TIME)) / (double)TRANSITION_TIME;
-                mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
+                //mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
                 transition(1.0f  - transitionProgress);
             }
 
             transformation.preTranslate(
-                    lerp(getTranslateX(fitted, container), getTranslateX(zoomed, orig), (float)animationProgress),
-                    lerp(getTranslateY(fitted, container), getTranslateY(zoomed, orig), (float)animationProgress)
+                    lerp(getTranslateX(fitted, container), getTranslateX(zoomed, container), (float)animationProgress),
+                    lerp(getTranslateY(fitted, container), getTranslateY(zoomed, container), (float)animationProgress)
             );
             transformation.preScale(
                     lerp(getScaleX(fitted, orig), getScaleX(zoomed, orig), (float)animationProgress),
