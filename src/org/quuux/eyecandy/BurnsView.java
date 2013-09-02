@@ -27,8 +27,6 @@ public class BurnsView extends View {
         final Rect frame = new Rect();
 
         int age;
-        double animationProgress, transitionProgress;
-
         public ImageHolder(final Image image, final View parent, final int width, final int height) {
             this.image = image;
 
@@ -94,24 +92,28 @@ public class BurnsView extends View {
             dest.set(centerX - scaledWidth, centerY - scaledHeight, centerX + scaledWidth, centerY + scaledHeight);
         }
 
-        void transition() {
-            paint.setAlpha((int)Math.round(255 * transitionProgress));
+        void transition(final double transitionProgress) {
+            paint.setAlpha(transitionProgress > 0 ? (int)Math.round(255 * transitionProgress) : 0);
         }
 
         abstract void draw(final Canvas canvas);
 
         void onDraw(final Canvas canvas, final int elapsed) {
+            age += elapsed;
 
             transformation.reset();
             canvas.save();
 
-            age += elapsed;
-
-            animationProgress = (double)age / (double)ANIMATION_TIME;
+            final double animationProgress = (double)age / (double)ANIMATION_TIME;
 
             if (age < TRANSITION_TIME) {
-                transitionProgress = (double)age / (double)TRANSITION_TIME;
-                transition();
+                final double transitionProgress = (double)age / (double)TRANSITION_TIME;
+                mLog.d("IN >>> progress  - animation = %.03f | transition = %.03f", animationProgress, transitionProgress);
+                transition(transitionProgress);
+            } else if (age > ANIMATION_TIME - TRANSITION_TIME) {
+                final double transitionProgress = (double)(age - (ANIMATION_TIME - TRANSITION_TIME)) / (double)TRANSITION_TIME;
+                mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
+                transition(1.0f  - transitionProgress);
             }
 
             transformation.preTranslate(
@@ -295,8 +297,6 @@ public class BurnsView extends View {
         mPrevious = mCurrent;
         mCurrent = mNext;
         mNext = null;
-
-        mCurrent.paint.setAlpha(255);
     }
 
     @Override

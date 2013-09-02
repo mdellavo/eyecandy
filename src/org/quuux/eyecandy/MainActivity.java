@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         View v = findViewById(android.R.id.content);
-        v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+        v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
 
         mBurnsView = new BurnsView(this);
         setContentView(mBurnsView);
