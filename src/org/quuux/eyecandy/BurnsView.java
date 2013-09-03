@@ -18,7 +18,7 @@ public class BurnsView extends View {
 
         final Matrix transformation = new Matrix();
 
-        final float zoomFactor = 2f;
+        final float zoomFactor = 1.25f;
 
         final Rect orig = new Rect();
         final Rect container = new Rect();
