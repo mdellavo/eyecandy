@@ -5,217 +5,20 @@ import android.graphics.*;
 import android.os.Build;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 
 public class BurnsView extends View {
 
     public static final Log mLog = new Log(BurnsView.class);
 
-    static abstract class ImageHolder {
-
-        final Image image;
-        final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
-
-        final Matrix transformation = new Matrix();
-
-        final int sequenceNumber;
-        final float zoomFactor = 1.5f;
-
-        final Rect orig = new Rect();
-        final Rect container = new Rect();
-        final Rect zoomed = new Rect();
-        final Rect fitted = new Rect();
-        final Rect frame = new Rect();
-
-        int age;
-
-        public ImageHolder(final int sequenceNumber, final Image image, final View parent, final int width, final int height) {
-            this.sequenceNumber = sequenceNumber;
-            this.image = image;
-
-            orig.set(0, 0, width, height);
-            container.set(0, 0, parent.getWidth(), parent.getHeight());
-
-            paint.setAlpha(0);
-
-            mLog.d("orig rect = %s (ar = %s)", orig, getAspectRatio(orig));
-            mLog.d("container rect = %s (ar = %s)", container, getAspectRatio(container));
-
-            fit(fitted);
-            zoom(fitted, zoomed, zoomFactor);
-
-            mLog.d("fitted rect = %s (ar = %s | scale = %.03f, %.03f)", fitted, getAspectRatio(fitted), getScaleX(fitted, orig), getScaleY(fitted, orig));
-            mLog.d("zoomed rect = %s (ar = %s | scale = %.03f, %.03f)", zoomed, getAspectRatio(zoomed), getScaleX(zoomed, orig), getScaleY(zoomed, orig));
-        }
-
-        double getAspectRatio(final Rect rect) {
-            return (double)rect.width() / (double)rect.height();
-        }
-
-        void fit(final Rect dest) {
-            final double imageAspectRatio = getAspectRatio(orig);
-            final double containerAspectRatio = getAspectRatio(container);
-
-            final boolean heightContrained = containerAspectRatio > imageAspectRatio;
-
-            final int scaledWidth = heightContrained ? orig.width() * container.height()/orig.height() : container.width();
-            final int scaledHeight = heightContrained ? container.height() : orig.height() * container.width() / orig.width();
-
-            final int top = (container.height() - scaledHeight) / 2;
-            final int left = (container.width() - scaledWidth) / 2;
-
-            dest.set(left, top, left + scaledWidth, top + scaledHeight);
-        }
-
-        float getTranslateX(final Rect a, final Rect b) {
-            return (b.width() - a.width()) / 2.0f;
-        }
-
-        float getTranslateY(final Rect a, final Rect b) {
-            return (b.height() - a.height()) / 2.0f;
-        }
-
-        float getScaleX(final Rect a, final Rect b) {
-            return (float)a.width() / (float)b.width();
-        }
-
-        float getScaleY(final Rect a, final Rect b) {
-            return (float)a.height() / (float)b.height();
-        }
-
-        float lerp(float a, float b, float t) {
-            return a + (b - a) * t;
-        }
-
-        void zoom(final Rect src, final Rect dest, final double scale) {
-            final int scaledWidth = (int)Math.round((src.width() * scale) / 2.0f);
-            final int scaledHeight = (int)Math.round((src.height() * scale) / 2.0f);
-            final int centerX = src.centerX();
-            final int centerY = src.centerY();
-            dest.set(centerX - scaledWidth, centerY - scaledHeight, centerX + scaledWidth, centerY + scaledHeight);
-        }
-
-        void transition(final double transitionProgress) {
-            paint.setAlpha(transitionProgress > 0 ? (int)Math.round(255 * transitionProgress) : 0);
-        }
-
-        abstract void draw(final Canvas canvas);
-
-        void onDraw(final Canvas canvas, final int elapsed) {
-            age += elapsed;
-
-            transformation.reset();
-            canvas.save();
-
-            final double animationProgress = (double)age / (double)ANIMATION_TIME;
-
-            if (age < TRANSITION_TIME) {
-                final double transitionProgress = (double)age / (double)TRANSITION_TIME;
-                //mLog.d("IN >>> progress  - animation = %.03f | transition = %.03f", animationProgress, transitionProgress);
-                transition(transitionProgress);
-            } else if (age > ANIMATION_TIME - TRANSITION_TIME) {
-                final double transitionProgress = (double)(age - (ANIMATION_TIME - TRANSITION_TIME)) / (double)TRANSITION_TIME;
-                //mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
-                transition(1.0f - transitionProgress);
-            }
-
-            final boolean alt = sequenceNumber % 2 == 0;
-
-            final Rect src = alt ? fitted : zoomed;
-            final Rect dest = alt ? zoomed : fitted;
-
-            transformation.preTranslate(
-                    lerp(getTranslateX(src, container), getTranslateX(dest, container), (float)animationProgress),
-                    lerp(getTranslateY(src, container), getTranslateY(dest, container), (float)animationProgress)
-            );
-            transformation.preScale(
-                    lerp(getScaleX(src, orig), getScaleX(dest, orig), (float)animationProgress),
-                    lerp(getScaleY(src, orig), getScaleY(dest, orig), (float)animationProgress)
-            );
-
-            canvas.setMatrix(transformation);
-
-            draw(canvas);
-
-            canvas.restore();
-        }
-
-    }
-
-    static class BitmapHolder extends ImageHolder {
-
-        final Bitmap bitmap;
-
-        public BitmapHolder(final int sequenceNumber, final Image image, final Bitmap bitmap, final View parent) {
-            super(sequenceNumber, image, parent, bitmap.getWidth(), bitmap.getHeight());
-            this.bitmap = bitmap;
-        }
-
-
-
-        @Override
-        void draw(final Canvas canvas) {
-            canvas.drawBitmap(bitmap, 0, 0, paint);
-        }
-
-    }
-
-    static class MovieHolder extends ImageHolder {
-
-        final Movie movie;
-        final Canvas canvas;
-        final Bitmap bitmap;
-
-        public MovieHolder(final int sequenceNumber, final Image image, final Movie movie, final View parent) {
-            super(sequenceNumber, image, parent, movie.width(), movie.height());
-            this.movie = movie;
-            bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888);
-            canvas = new Canvas(bitmap);
-        }
-
-        @Override
-        void draw(final Canvas canvas) {
-            movie.setTime(age % movie.duration());
-            movie.draw(this.canvas, 0, 0, paint);
-
-            canvas.drawBitmap(bitmap, 0, 0, paint);
-
-        }
-    }
-
-    static class TextHolder extends ImageHolder {
-
-        String text;
-
-        public TextHolder(final View parent) {
-            super(0, null, parent, parent.getWidth(), parent.getHeight());
-
-            text = parent.getContext().getString(R.string.wait);
-
-            paint.setColor(Color.DKGRAY);
-            paint.setTextAlign(Paint.Align.CENTER);
-            paint.setTextSize(72);
-            paint.setFakeBoldText(true);
-            paint.setAlpha(255);
-        }
-
-        @Override
-        void onDraw(final Canvas canvas, final int elapsed) {
-            draw(canvas);
-        }
-
-        @Override
-        void draw(final Canvas canvas) {
-            canvas.drawText(text, container.width() / 2, container.height() / 2, paint);
-        }
-
-    }
-
-    public static final int MAX_BITMAP_HEIGHT = 2048;
-    public static final int MAX_BITMAP_WIDTH = 2048;
+    private static final int MAX_BITMAP_HEIGHT = 2048;
+    private static final int MAX_BITMAP_WIDTH = 2048;
     private static final int ANIMATION_TIME = 10 * 1000;
     private static final int TRANSITION_TIME = 2 * 1000;
-    public static final int DELAY_MILLIS = 20;
+    private static final int DELAY_MILLIS = 20;
+    private static final int TITLE_TEXT_TIME = 5 * 1000;
 
     private static final String TAG = "BurnsView";
 
@@ -224,16 +27,17 @@ public class BurnsView extends View {
     private ImageHolder mPrevious;
     private ImageHolder mCurrent;
     private ImageHolder mNext;
-    private ImageHolder mWaitText;
+    private TextHolder mWaitText;
+    private TextHolder mTitleText;
     private boolean loading = false;
-
     private int sequenceNumber;
+    private long mLast;
 
     private int mMaxBitmapWidth = -1, mMaxBitmapHeight = -1;
 
-    private long mLast;
-
     private ImageAdapter mAdapter;
+
+    private GestureDetector mDetector;
 
     private final Handler mHandler = new Handler();
 
@@ -269,7 +73,19 @@ public class BurnsView extends View {
             mMaxBitmapWidth = MAX_BITMAP_WIDTH;
         }
 
+        mDetector = new GestureDetector(getContext(), mListener);
+
         invalidate();
+    }
+
+    @Override
+    public boolean onTouchEvent(final MotionEvent event) {
+        boolean result = mDetector.onTouchEvent(event);
+
+        if (!result)
+            result = super.onTouchEvent(event);
+
+        return result;
     }
 
     public void setAdapter(ImageAdapter adapter) {
@@ -396,4 +212,221 @@ public class BurnsView extends View {
         mHandler.removeCallbacks(mAnimator);
     }
 
+    public void showTitle() {
+        if (mCurrent == null)
+            return;
+
+        mTitleText.setText(mCurrent.image.getTitle());
+
+    }
+
+    private GestureDetector.SimpleOnGestureListener mListener = new GestureDetector.SimpleOnGestureListener() {
+        @Override
+        public boolean onDown(final MotionEvent e) {
+            showTitle();
+            return true;
+        }
+    };
+
+    interface Drawable {
+        void onDraw(final Canvas canvas, final int elapsed);
+    }
+
+    static abstract class ImageHolder implements Drawable {
+
+        final Image image;
+        final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+
+        final Matrix transformation = new Matrix();
+
+        final int sequenceNumber;
+        final float zoomFactor = 1.5f;
+
+        final Rect orig = new Rect();
+        final Rect container = new Rect();
+        final Rect zoomed = new Rect();
+        final Rect fitted = new Rect();
+        final Rect frame = new Rect();
+
+        int age;
+
+        public ImageHolder(final int sequenceNumber, final Image image, final View parent, final int width, final int height) {
+            this.sequenceNumber = sequenceNumber;
+            this.image = image;
+
+            orig.set(0, 0, width, height);
+            container.set(0, 0, parent.getWidth(), parent.getHeight());
+
+            paint.setAlpha(0);
+
+            mLog.d("orig rect = %s (ar = %s)", orig, getAspectRatio(orig));
+            mLog.d("container rect = %s (ar = %s)", container, getAspectRatio(container));
+
+            fit(fitted);
+            zoom(fitted, zoomed, zoomFactor);
+
+            mLog.d("fitted rect = %s (ar = %s | scale = %.03f, %.03f)", fitted, getAspectRatio(fitted), getScaleX(fitted, orig), getScaleY(fitted, orig));
+            mLog.d("zoomed rect = %s (ar = %s | scale = %.03f, %.03f)", zoomed, getAspectRatio(zoomed), getScaleX(zoomed, orig), getScaleY(zoomed, orig));
+        }
+
+        double getAspectRatio(final Rect rect) {
+            return (double)rect.width() / (double)rect.height();
+        }
+
+        void fit(final Rect dest) {
+            final double imageAspectRatio = getAspectRatio(orig);
+            final double containerAspectRatio = getAspectRatio(container);
+
+            final boolean heightContrained = containerAspectRatio > imageAspectRatio;
+
+            final int scaledWidth = heightContrained ? orig.width() * container.height()/orig.height() : container.width();
+            final int scaledHeight = heightContrained ? container.height() : orig.height() * container.width() / orig.width();
+
+            final int top = (container.height() - scaledHeight) / 2;
+            final int left = (container.width() - scaledWidth) / 2;
+
+            dest.set(left, top, left + scaledWidth, top + scaledHeight);
+        }
+
+        float getTranslateX(final Rect a, final Rect b) {
+            return (b.width() - a.width()) / 2.0f;
+        }
+
+        float getTranslateY(final Rect a, final Rect b) {
+            return (b.height() - a.height()) / 2.0f;
+        }
+
+        float getScaleX(final Rect a, final Rect b) {
+            return (float)a.width() / (float)b.width();
+        }
+
+        float getScaleY(final Rect a, final Rect b) {
+            return (float)a.height() / (float)b.height();
+        }
+
+        float lerp(float a, float b, float t) {
+            return a + (b - a) * t;
+        }
+
+        void zoom(final Rect src, final Rect dest, final double scale) {
+            final int scaledWidth = (int)Math.round((src.width() * scale) / 2.0f);
+            final int scaledHeight = (int)Math.round((src.height() * scale) / 2.0f);
+            final int centerX = src.centerX();
+            final int centerY = src.centerY();
+            dest.set(centerX - scaledWidth, centerY - scaledHeight, centerX + scaledWidth, centerY + scaledHeight);
+        }
+
+        void transition(final double transitionProgress) {
+            paint.setAlpha(transitionProgress > 0 ? (int)Math.round(255 * transitionProgress) : 0);
+        }
+
+        abstract void draw(final Canvas canvas);
+
+        @Override
+        public void onDraw(final Canvas canvas, final int elapsed) {
+            age += elapsed;
+
+            transformation.reset();
+            canvas.save();
+
+            final double animationProgress = (double)age / (double)ANIMATION_TIME;
+
+            if (age < TRANSITION_TIME) {
+                final double transitionProgress = (double)age / (double)TRANSITION_TIME;
+                //mLog.d("IN >>> progress  - animation = %.03f | transition = %.03f", animationProgress, transitionProgress);
+                transition(transitionProgress);
+            } else if (age > ANIMATION_TIME - TRANSITION_TIME) {
+                final double transitionProgress = (double)(age - (ANIMATION_TIME - TRANSITION_TIME)) / (double)TRANSITION_TIME;
+                //mLog.d("OUT <<< progress  - animation = %.03f | transition = %.03f", animationProgress, 1.0f - transitionProgress);
+                transition(1.0f - transitionProgress);
+            }
+
+            final boolean alt = sequenceNumber % 2 == 0;
+
+            final Rect src = alt ? fitted : zoomed;
+            final Rect dest = alt ? zoomed : fitted;
+
+            transformation.preTranslate(
+                    lerp(getTranslateX(src, container), getTranslateX(dest, container), (float)animationProgress),
+                    lerp(getTranslateY(src, container), getTranslateY(dest, container), (float)animationProgress)
+            );
+            transformation.preScale(
+                    lerp(getScaleX(src, orig), getScaleX(dest, orig), (float)animationProgress),
+                    lerp(getScaleY(src, orig), getScaleY(dest, orig), (float)animationProgress)
+            );
+
+            canvas.setMatrix(transformation);
+
+            draw(canvas);
+
+            canvas.restore();
+        }
+
+    }
+
+    static class BitmapHolder extends ImageHolder {
+
+        final Bitmap bitmap;
+
+        public BitmapHolder(final int sequenceNumber, final Image image, final Bitmap bitmap, final View parent) {
+            super(sequenceNumber, image, parent, bitmap.getWidth(), bitmap.getHeight());
+            this.bitmap = bitmap;
+        }
+
+        @Override
+        void draw(final Canvas canvas) {
+            canvas.drawBitmap(bitmap, 0, 0, paint);
+        }
+    }
+
+    static class MovieHolder extends ImageHolder {
+
+        final Movie movie;
+        final Canvas canvas;
+        final Bitmap bitmap;
+
+        public MovieHolder(final int sequenceNumber, final Image image, final Movie movie, final View parent) {
+            super(sequenceNumber, image, parent, movie.width(), movie.height());
+            this.movie = movie;
+            bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888);
+            canvas = new Canvas(bitmap);
+        }
+
+        @Override
+        void draw(final Canvas canvas) {
+            // NB drawing to bitmap backed canvas and drawing the backing bitmap to view canvas preserves hw accel
+            movie.setTime(age % movie.duration());
+            movie.draw(this.canvas, 0, 0, paint);
+            canvas.drawBitmap(bitmap, 0, 0, paint);
+        }
+    }
+
+    static class TextHolder implements Drawable {
+
+        String text;
+        Paint paint = new Paint();
+        int x,y;
+
+        public TextHolder(final View parent) {
+            paint.setColor(Color.DKGRAY);
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setTextSize(72);
+            paint.setFakeBoldText(true);
+            paint.setAlpha(255);
+
+            setText(parent.getContext().getString(R.string.wait));
+
+            x = parent.getWidth() / 2;
+            y = parent.getHeight() / 2;
+        }
+
+        public void setText(final String text) {
+            this.text = text;
+        }
+
+        @Override
+        public void onDraw(final Canvas canvas, final int elapsed) {
+            canvas.drawText(text, x, y, paint);
+        }
+    }
 }
