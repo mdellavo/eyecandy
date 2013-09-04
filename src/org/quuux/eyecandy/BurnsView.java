@@ -224,8 +224,6 @@ public class BurnsView extends View {
 
     private ImageAdapter mAdapter;
 
-    private int mMaxBitmapWidth = -1, mMaxBitmapHeight = -1;
-
     private final Handler mHandler = new Handler();
 
     private final Runnable mAnimator = new Runnable() {
@@ -255,11 +253,6 @@ public class BurnsView extends View {
     private void init() {
         setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            mMaxBitmapHeight = MAX_BITMAP_HEIGHT;
-            mMaxBitmapWidth = MAX_BITMAP_WIDTH;
-        }
-
         invalidate();
     }
 
@@ -268,6 +261,9 @@ public class BurnsView extends View {
     }
 
     public void nextImage() {
+        if (loading)
+            return;
+
         loading = true;
 
         mAdapter.nextImage(new ImageLoadedListener() {
@@ -276,6 +272,7 @@ public class BurnsView extends View {
                 if (image == null || object == null) {
                     mLog.d("error fetching next image, trying again");
                     nextImage();
+                    loading = false;
                     return;
                 }
 
@@ -318,15 +315,7 @@ public class BurnsView extends View {
 
         super.onDraw(canvas);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            if (mMaxBitmapHeight <0 || mMaxBitmapWidth <0) {
-                mMaxBitmapWidth = canvas.getMaximumBitmapWidth();
-                mMaxBitmapHeight = canvas.getMaximumBitmapHeight();
-
-                if (mAdapter != null)
-                    mAdapter.setMaxBitmapSize(mMaxBitmapWidth, mMaxBitmapHeight);
-            }
-        }
+        mAdapter.setMaxBitmapSize(getWidth(), getHeight());
 
         if (!mRunning)
             return;
@@ -361,7 +350,7 @@ public class BurnsView extends View {
                 mLog.d("Animation complete, flipping");
                 flipImage();
             } else {
-                mLog.d("animation expired and nothing to do ! (current = %s, next = %s)", mCurrent, mNext);
+                mLog.d("animation expired and nothing to do ! (loading = %s, current = %s, next = %s)", loading, mCurrent, mNext);
             }
         }
 

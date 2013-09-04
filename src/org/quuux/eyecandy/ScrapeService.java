@@ -150,7 +150,6 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
                     }
                 }
         );
-
         mRequestQueue.add(request);
     }
 
