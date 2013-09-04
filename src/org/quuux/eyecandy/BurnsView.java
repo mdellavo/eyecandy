@@ -18,6 +18,7 @@ public class BurnsView extends View {
 
         final Matrix transformation = new Matrix();
 
+        final int sequenceNumber;
         final float zoomFactor = 1.5f;
 
         final Rect orig = new Rect();
@@ -27,7 +28,9 @@ public class BurnsView extends View {
         final Rect frame = new Rect();
 
         int age;
-        public ImageHolder(final Image image, final View parent, final int width, final int height) {
+
+        public ImageHolder(final int sequenceNumber, final Image image, final View parent, final int width, final int height) {
+            this.sequenceNumber = sequenceNumber;
             this.image = image;
 
             orig.set(0, 0, width, height);
@@ -116,13 +119,18 @@ public class BurnsView extends View {
                 transition(1.0f - transitionProgress);
             }
 
+            final boolean alt = sequenceNumber % 2 == 0;
+
+            final Rect src = alt ? fitted : zoomed;
+            final Rect dest = alt ? zoomed : fitted;
+
             transformation.preTranslate(
-                    lerp(getTranslateX(fitted, container), getTranslateX(zoomed, container), (float)animationProgress),
-                    lerp(getTranslateY(fitted, container), getTranslateY(zoomed, container), (float)animationProgress)
+                    lerp(getTranslateX(src, container), getTranslateX(dest, container), (float)animationProgress),
+                    lerp(getTranslateY(src, container), getTranslateY(dest, container), (float)animationProgress)
             );
             transformation.preScale(
-                    lerp(getScaleX(fitted, orig), getScaleX(zoomed, orig), (float)animationProgress),
-                    lerp(getScaleY(fitted, orig), getScaleY(zoomed, orig), (float)animationProgress)
+                    lerp(getScaleX(src, orig), getScaleX(dest, orig), (float)animationProgress),
+                    lerp(getScaleY(src, orig), getScaleY(dest, orig), (float)animationProgress)
             );
 
             canvas.setMatrix(transformation);
@@ -138,8 +146,8 @@ public class BurnsView extends View {
 
         final Bitmap bitmap;
 
-        public BitmapHolder(final Image image, final Bitmap bitmap, final View parent) {
-            super(image, parent, bitmap.getWidth(), bitmap.getHeight());
+        public BitmapHolder(final int sequenceNumber, final Image image, final Bitmap bitmap, final View parent) {
+            super(sequenceNumber, image, parent, bitmap.getWidth(), bitmap.getHeight());
             this.bitmap = bitmap;
         }
 
@@ -158,8 +166,8 @@ public class BurnsView extends View {
         final Canvas canvas;
         final Bitmap bitmap;
 
-        public MovieHolder(final Image image, final Movie movie, final View parent) {
-            super(image, parent, movie.width(), movie.height());
+        public MovieHolder(final int sequenceNumber, final Image image, final Movie movie, final View parent) {
+            super(sequenceNumber, image, parent, movie.width(), movie.height());
             this.movie = movie;
             bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888);
             canvas = new Canvas(bitmap);
@@ -180,7 +188,7 @@ public class BurnsView extends View {
         String text;
 
         public TextHolder(final View parent) {
-            super(null, parent, parent.getWidth(), parent.getHeight());
+            super(0, null, parent, parent.getWidth(), parent.getHeight());
 
             text = parent.getContext().getString(R.string.wait);
 
@@ -218,6 +226,8 @@ public class BurnsView extends View {
     private ImageHolder mNext;
     private ImageHolder mWaitText;
     private boolean loading = false;
+
+    private int sequenceNumber;
 
     private int mMaxBitmapWidth = -1, mMaxBitmapHeight = -1;
 
@@ -284,10 +294,12 @@ public class BurnsView extends View {
 
                 Log.d(TAG, "got next image %s", image);
 
+                sequenceNumber++;
+
                 if (object instanceof Bitmap)
-                    mNext = new BitmapHolder(image, (Bitmap)object, BurnsView.this);
+                    mNext = new BitmapHolder(sequenceNumber, image, (Bitmap)object, BurnsView.this);
                 else if (object instanceof Movie)
-                    mNext = new MovieHolder(image, (Movie)object, BurnsView.this);
+                    mNext = new MovieHolder(sequenceNumber, image, (Movie)object, BurnsView.this);
 
                 if (mCurrent == null)
                     flipImage();
