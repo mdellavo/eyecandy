@@ -15,7 +15,7 @@ import org.quuux.orm.Session;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ScrapeService extends IntentService implements ScrapeCompleteListener {
+public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
 
@@ -104,7 +104,6 @@ public class ScrapeService extends IntentService implements ScrapeCompleteListen
 
     }
 
-    @Override
     public void onScrapeComplete(int numScraped) {
         mTaskCount--;
 
