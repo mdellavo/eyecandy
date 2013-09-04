@@ -18,7 +18,7 @@ public class BurnsView extends View {
 
         final Matrix transformation = new Matrix();
 
-        final float zoomFactor = 1.25f;
+        final float zoomFactor = 1.5f;
 
         final Rect orig = new Rect();
         final Rect container = new Rect();
@@ -219,6 +219,7 @@ public class BurnsView extends View {
     private ImageHolder mWaitText;
     private boolean loading = false;
 
+    private int mMaxBitmapWidth = -1, mMaxBitmapHeight = -1;
 
     private long mLast;
 
@@ -252,6 +253,11 @@ public class BurnsView extends View {
 
     private void init() {
         setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            mMaxBitmapHeight = MAX_BITMAP_HEIGHT;
+            mMaxBitmapWidth = MAX_BITMAP_WIDTH;
+        }
 
         invalidate();
     }
@@ -315,7 +321,10 @@ public class BurnsView extends View {
 
         super.onDraw(canvas);
 
-        mAdapter.setMaxBitmapSize(getWidth(), getHeight());
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            mMaxBitmapHeight = MAX_BITMAP_HEIGHT;
+            mMaxBitmapWidth = MAX_BITMAP_WIDTH;
+        }
 
         if (!mRunning)
             return;

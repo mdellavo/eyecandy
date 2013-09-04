@@ -1,15 +1,24 @@
 package org.quuux.eyecandy;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.service.dreams.DreamService;
 import android.widget.ImageView;
 import android.widget.TextView;
+import org.quuux.orm.Database;
 
 public class EyeCandyDream extends DreamService {
 
-    private static final String TAG = "EyeCandyDream";
-    private static final int INTERVAL = 15 * 1000;
+    static {
+        Database.attach(Image.class);
+    }
 
-    protected EyeCandy eyeCandy;
+    private static final String TAG = "EyeCandyDream";
+
+    private BurnsView mBurnsView;
+    private ImageAdapter mAdapter;
 
     @Override
     public void onAttachedToWindow() {
@@ -17,11 +26,16 @@ public class EyeCandyDream extends DreamService {
 
         setInteractive(true);
         setFullscreen(true);
-        setContentView(R.layout.main);
 
-        eyeCandy = new EyeCandy(this, INTERVAL); 
-        eyeCandy.attach((TextView)findViewById(R.id.label), 
-                        (BurnsView)findViewById(R.id.image));
+        mBurnsView = new BurnsView(this);
+        mAdapter = new ImageAdapter(this);
+        mBurnsView.setAdapter(mAdapter);
+
+        setContentView(mBurnsView);
+
+        final Intent intent = new Intent(this, ScrapeService.class);
+        startService(intent);
+
     }
 
     @Override
@@ -33,13 +47,32 @@ public class EyeCandyDream extends DreamService {
     @Override
     public void onDreamingStarted() {
         super.onDreamingStarted();
-        eyeCandy.startFlipping();
+
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+        registerReceiver(mBroadcastReceiver, filter);
+
+        mBurnsView.startAnimation();
     }
 
     @Override
     public void onDreamingStopped() {
         super.onDreamingStopped();
-        eyeCandy.stopFlipping();
+
+        mBurnsView.stopAnimation();
+        unregisterReceiver(mBroadcastReceiver);
     }
+
+    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+
+            final String action = intent.getAction();
+            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                mAdapter.fillQueue();
+            }
+        }
+    };
 }
  

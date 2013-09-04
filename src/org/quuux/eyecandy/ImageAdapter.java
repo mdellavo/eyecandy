@@ -26,7 +26,7 @@ public class ImageAdapter {
 
     private static final String TAG = Log.buildTag(ImageAdapter.class);
 
-    private static final int PRECACHE_SIZE = 1;
+    private static final int PRECACHE_SIZE = 3;
     private static final int HISTORY_SIZE = 4;
     private static final int PAGE_SIZE = 10;
 
@@ -199,7 +199,7 @@ public class ImageAdapter {
                         Log.d(TAG, "got image reponse %s - %s", image, bitmap);
                         ImageAdapter.this.onResponse(image, bitmap);
                     }
-                }, 0, 0, Bitmap.Config.ARGB_8888, errorListener);
+                }, mMaxWidth, mMaxHeight, Bitmap.Config.ARGB_8888, errorListener);
             }
 
             Log.d(TAG, "fetching %s - %s", image, request);
