@@ -98,7 +98,7 @@ public class BurnsView extends View {
 
         loading = true;
 
-        mAdapter.nextImage(new ImageLoadedListener() {
+        mAdapter.nextImage(new ImageAdapter.ImageLoadedListener() {
             @Override
             public void onImageLoaded(final Image image, final Object object) {
                 if (image == null || object == null) {
@@ -126,7 +126,7 @@ public class BurnsView extends View {
     }
 
     public void previousImage() {
-        mAdapter.previousImage(new ImageLoadedListener() {
+        mAdapter.previousImage(new ImageAdapter.ImageLoadedListener() {
             @Override
             public void onImageLoaded(final Image image, final Object object) {
                 if (image == null || object == null)
@@ -163,6 +163,9 @@ public class BurnsView extends View {
 
         if (mWaitText == null)
             mWaitText = new TextHolder(this);
+
+        if (mTitleText == null)
+            mTitleText = new TextHolder(this);
 
         long now = System.currentTimeMillis();
         int elapsed = (int)(now - mLast);
@@ -217,7 +220,6 @@ public class BurnsView extends View {
             return;
 
         mTitleText.setText(mCurrent.image.getTitle());
-
     }
 
     private GestureDetector.SimpleOnGestureListener mListener = new GestureDetector.SimpleOnGestureListener() {

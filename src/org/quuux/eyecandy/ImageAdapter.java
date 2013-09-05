@@ -1,12 +1,8 @@
 package org.quuux.eyecandy;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Movie;
-import android.support.v4.util.LruCache;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -220,4 +216,7 @@ public class ImageAdapter {
 
     }
 
+    public static interface ImageLoadedListener {
+        public void onImageLoaded(Image image, Object object);
+    }
 }
