@@ -103,7 +103,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         } else if (position == 0) {
             view.setAlpha(1);
             view.setTranslationX(0);
-        } else if (position <= 1) { // (0,1]
+        } else if (position < 1) { // (0,1]
             // Fade the page out.
             view.setAlpha(1 - position);
 
@@ -120,36 +120,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             view.setAlpha(0);
         }
 
-    }
-
-    public static class ImageSlideView
-            extends ImageView
-            implements Target {
-
-        public ImageSlideView(final Context context) {
-            super(context);
-            final ViewPager.LayoutParams params = new ViewPager.LayoutParams();
-            params.height = ViewPager.LayoutParams.MATCH_PARENT;
-            params.width = ViewPager.LayoutParams.MATCH_PARENT;
-            setLayoutParams(params);
-            setAlpha(0);
-
-        }
-
-        @Override
-        public void onBitmapLoaded(final Bitmap bitmap, final Picasso.LoadedFrom loadedFrom) {
-            setImageBitmap(bitmap);
-        }
-
-        @Override
-        public void onBitmapFailed(final Drawable drawable) {
-
-        }
-
-        @Override
-        public void onPrepareLoad(final Drawable drawable) {
-
-        }
     }
 
     public static class Adapter extends PagerAdapter {
@@ -201,6 +171,14 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             final ImageView rv = new ImageView(context);
 
+            final ViewPager.LayoutParams params = new ViewPager.LayoutParams();
+            params.height = ViewPager.LayoutParams.MATCH_PARENT;
+            params.width = ViewPager.LayoutParams.MATCH_PARENT;
+            rv.setLayoutParams(params);
+            rv.setAlpha(0);
+
+
+
             container.addView(rv);
 
             final Image i = mImages.get(position);
@@ -235,7 +213,17 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         private void loadImage(final ImageView v, final Image image) {
             Log.d(TAG, "loading image %s", image.getUrl());
-            mPicasso.load(image.getUrl()).resize(mSize.x, mSize.y).centerCrop().noFade().into(v);
+            mPicasso.load(image.getUrl()).resize(mSize.x, mSize.y).centerCrop().into(v, new Callback() {
+                @Override
+                public void onSuccess() {
+                    Log.d(TAG, "loaded image");
+                }
+
+                @Override
+                public void onError() {
+                    Log.d(TAG, "error loading image!");
+                }
+            });
         }
 
         public void setOffset(final long offset) {

@@ -1,3 +1,4 @@
+
 package org.quuux.eyecandy;
 
 import android.content.Context;
