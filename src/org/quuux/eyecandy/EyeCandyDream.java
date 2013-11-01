@@ -28,7 +28,7 @@ public class EyeCandyDream extends DreamService {
         setFullscreen(true);
 
         mBurnsView = new BurnsView(this);
-        mAdapter = new ImageAdapter(this);
+        //kmAdapter = new ImageAdapter(this);
         mBurnsView.setAdapter(mAdapter);
 
         setContentView(mBurnsView);

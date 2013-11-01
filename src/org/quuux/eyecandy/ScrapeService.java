@@ -28,6 +28,8 @@ public class ScrapeService extends IntentService {
     private static final String SUBREDDITS[] = {
 
             "Cinemagraphs",
+            "gifs",
+            "naturegifs",
 
             "earthporn",
             "villageporn",
@@ -92,7 +94,7 @@ public class ScrapeService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        mRequestQueue = Volley.newRequestQueue(this, new OkHttpStack());
+        mRequestQueue = EyeCandyVolley.getRequestQueue(this);
 
         mDatabase = EyeCandyDatabase.getInstance(this);
  
@@ -148,7 +150,12 @@ public class ScrapeService extends IntentService {
                         Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
                     }
                 }
-        );
+        ) {
+            @Override
+            public Priority getPriority() {
+                return Priority.LOW;
+            }
+        };
         mRequestQueue.add(request);
     }
 

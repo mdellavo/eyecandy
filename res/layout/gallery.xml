@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <GridView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:id="@+id/grid"
+        android:columnWidth="90dp"
+        android:numColumns="auto_fit"
+        android:verticalSpacing="20dp"
+        android:horizontalSpacing="20dp"
+        android:stretchMode="columnWidth"
+        android:gravity="center"
+
+
+        />
+
+    <View
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:id="@+id/scrim"
+        android:background="#cc000000"
+        android:visibility="gone"
+        />
+
+    <ImageView
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:adjustViewBounds="true"
+        android:id="@+id/zoomed_image"/>
+
+    <RelativeLayout
+        android:layout_height="match_parent"
+        android:layout_width="match_parent">
+
+        <TextView
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_alignParentBottom="true"
+            android:background="#88000000"
+            android:padding="5dp"
+            android:gravity="center"
+            android:textSize="24sp"
+            android:shadowColor="#333"
+            android:shadowRadius="10"
+            android:id="@+id/title"/>
+
+
+    </RelativeLayout>
+
+</FrameLayout>

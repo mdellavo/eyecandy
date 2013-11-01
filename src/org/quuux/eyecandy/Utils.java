@@ -1,6 +1,9 @@
 package org.quuux.eyecandy;
 
+import android.content.Context;
+import android.content.res.Resources;
 import android.database.Cursor;
+import android.util.DisplayMetrics;
 
 public class Utils {
 
@@ -20,6 +23,13 @@ public class Utils {
         }
             
         return cursor.getInt(index);
+    }
+
+    public static float dp2pix(float dp, Context context){
+        Resources resources = context.getResources();
+        DisplayMetrics metrics = resources.getDisplayMetrics();
+        float px = dp * (metrics.densityDpi / 160f);
+        return px;
     }
 
 }

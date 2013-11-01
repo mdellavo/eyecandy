@@ -26,18 +26,6 @@ public class ImageAdapter {
     private static final int HISTORY_SIZE = 4;
     private static final int PAGE_SIZE = 10;
 
-    class NoCache implements ImageLoader.ImageCache {
-
-        @Override
-        public Bitmap getBitmap(String url) {
-            return null;
-        }
-
-        @Override
-        public void putBitmap(String url, Bitmap bitmap) {
-        }
-    }
-
     private final Context mContext;
     private final EyeCandyDatabase mDatabase;
     private final RequestQueue mRequestQueue;
@@ -49,11 +37,10 @@ public class ImageAdapter {
 
     private ImageLoadedListener mListener = null;
 
-    public ImageAdapter(final Context context) {
+    public ImageAdapter(final Context context, final RequestQueue requestQueue) {
         mContext = context;
         mDatabase = EyeCandyDatabase.getInstance(context);
-        mRequestQueue = Volley.newRequestQueue(context, new OkHttpStack());
-        mRequestQueue.start();
+        mRequestQueue = requestQueue;
     }
 
     public void setMaxBitmapSize(final int width, final int height) {
@@ -107,6 +94,8 @@ public class ImageAdapter {
             return;
 
         Log.d(TAG, "filling queue");
+
+
 
         session.query(Image.class).orderBy("timesShown, RANDOM()").limit(PAGE_SIZE).all(new QueryListener<Image>() {
             @Override
@@ -187,7 +176,12 @@ public class ImageAdapter {
                         Log.d(TAG, "got movie reponse %s - %s", image, movie);
                         ImageAdapter.this.onResponse(image, movie);
                     }
-                }, errorListener);
+                }, errorListener) {
+                    @Override
+                    public Priority getPriority() {
+                        return Priority.NORMAL;
+                    }
+                };
             } else {
                 request = new ImageRequest(image.getUrl(), new Response.Listener<Bitmap>() {
                     @Override
@@ -195,7 +189,12 @@ public class ImageAdapter {
                         Log.d(TAG, "got image reponse %s - %s", image, bitmap);
                         ImageAdapter.this.onResponse(image, bitmap);
                     }
-                }, mMaxWidth, mMaxHeight, Bitmap.Config.ARGB_8888, errorListener);
+                }, mMaxWidth, mMaxHeight, Bitmap.Config.ARGB_8888, errorListener) {
+                    @Override
+                    public Priority getPriority() {
+                        return Priority.NORMAL;
+                    }
+                };
             }
 
             Log.d(TAG, "fetching %s - %s", image, request);

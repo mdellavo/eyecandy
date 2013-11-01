@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">EyeCandy</string>
     <string name="wait">conjouring</string>
+    <string name="gallery_select">Select</string>
 </resources>

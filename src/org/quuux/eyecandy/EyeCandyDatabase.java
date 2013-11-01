@@ -16,7 +16,7 @@ public class EyeCandyDatabase extends Database {
 
     public static EyeCandyDatabase getInstance(final Context context) {
         if (instance == null) {
-            instance = new EyeCandyDatabase(context, NAME, VERSION);
+            instance = new EyeCandyDatabase(context.getApplicationContext(), NAME, VERSION);
         }
 
         return instance;

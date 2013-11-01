@@ -397,7 +397,8 @@ public class BurnsView extends View {
         @Override
         void draw(final Canvas canvas) {
             // NB drawing to bitmap backed canvas and drawing the backing bitmap to view canvas preserves hw accel
-            movie.setTime(age % movie.duration());
+            if (movie.duration() > 0)
+                movie.setTime(age % movie.duration());
             movie.draw(this.canvas, 0, 0, paint);
             canvas.drawBitmap(bitmap, 0, 0, paint);
         }

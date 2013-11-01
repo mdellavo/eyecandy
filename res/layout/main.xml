@@ -5,18 +5,18 @@
     android:layout_height="match_parent">
 
     <org.quuux.eyecandy.BurnsView
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_centerVertical="true"
-        android:id="@+id/image"/>
+            android:id="@+id/burns"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_centerVertical="true" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        style="@style/Label"
-        android:id="@+id/label"/>
-    
+    <org.quuux.eyecandy.utils.HorizontalListView
+            android:id="@+id/thumbnails"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:layout_alignParentBottom="true"
+            />
+
 
 </RelativeLayout>
 
