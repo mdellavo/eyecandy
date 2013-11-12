@@ -96,7 +96,7 @@ public class ImageAdapter {
         Log.d(TAG, "filling queue");
 
 
-
+        // FIXME factor out query so we can subclass for different ordering, etc
         session.query(Image.class).orderBy("timesShown, RANDOM()").limit(PAGE_SIZE).all(new QueryListener<Image>() {
             @Override
             public void onResult(final List<Image> images) {

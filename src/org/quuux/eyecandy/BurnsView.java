@@ -51,17 +51,17 @@ public class BurnsView extends View {
         }
     };
 
-    public BurnsView(Context context) {
+    public BurnsView(final Context context) {
         super(context);
         init();
     }
 
-    public BurnsView(Context context, AttributeSet attrs) {
+    public BurnsView(final Context context, final AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    public BurnsView(Context context, AttributeSet attrs, int defStyle) {
+    public BurnsView(final Context context, final AttributeSet attrs, final int defStyle) {
         super(context, attrs, defStyle);
         init();
     }
@@ -89,7 +89,7 @@ public class BurnsView extends View {
         return result;
     }
 
-    public void setAdapter(ImageAdapter adapter) {
+    public void setAdapter(final ImageAdapter adapter) {
         mAdapter = adapter;
     }
 
@@ -122,6 +122,8 @@ public class BurnsView extends View {
                     flipImage();
 
                 loading = false;
+
+
             }
         });
     }
@@ -144,7 +146,7 @@ public class BurnsView extends View {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected void onDraw(final Canvas canvas) {
 
         final long t1 = System.currentTimeMillis();
 
@@ -229,6 +231,12 @@ public class BurnsView extends View {
             showTitle();
             return true;
         }
+
+        @Override
+        public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
+            nextImage();
+            return super.onFling(e1, e2, velocityX, velocityY);
+        }
     };
 
     interface Drawable {
@@ -238,7 +246,9 @@ public class BurnsView extends View {
     static abstract class ImageHolder implements Drawable {
 
         final Image image;
-        final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+        final Paint paint = new Paint(
+                Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG
+        );
 
         final Matrix transformation = new Matrix();
 

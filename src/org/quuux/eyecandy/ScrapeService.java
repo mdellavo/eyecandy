@@ -25,6 +25,8 @@ public class ScrapeService extends IntentService {
         Database.attach(Image.class);
     }
 
+    // http://headlikeanorange.tumblr.com/
+
     private static final String SUBREDDITS[] = {
 
             "Cinemagraphs",
@@ -88,6 +90,8 @@ public class ScrapeService extends IntentService {
     private int mTaskCount = 0;
     private EyeCandyDatabase mDatabase;
 
+    private static final Object sLock = new Object();
+
     public ScrapeService() {
         super(ScrapeService.class.getName());
     }
@@ -132,14 +136,16 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onResponse(final ImgurImageList response) {
 
-                        final Session session = mDatabase.createSession();
+                        synchronized (sLock) {
+                            final Session session = mDatabase.createSession();
 
-                        for(final ImgurImage i : response.data) {
-                            final Image img =  Image.fromImgur(i.getUrl(), i.title, i.isAnimated());
-                            session.add(img);
+                            for(final ImgurImage i : response.data) {
+                                final Image img =  Image.fromImgur(i.getUrl(), i.title, i.isAnimated());
+                                session.add(img);
+                            }
+
+                            session.commit();
                         }
-
-                        session.commit();
 
                         onScrapeComplete(response.data.size());
                     }

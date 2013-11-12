@@ -85,7 +85,7 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         final Database db = EyeCandyDatabase.getInstance(context);
         final Session session = db.createSession();
-        final Query query = session.query(Image.class);
+        final Query query = session.query(Image.class).orderBy("id DESC");
         mThumbnailsAdapter = new ThumbnailAdapter(context, query);
 
     }

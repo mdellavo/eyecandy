@@ -2,6 +2,7 @@ package org.quuux.eyecandy;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Movie;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -14,10 +15,16 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageRequest;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
+import org.quuux.eyecandy.utils.MovieRequest;
 import org.quuux.orm.CountListener;
 import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
@@ -46,42 +53,39 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     @Override
-    public void onCreate(final Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
 
-        final Display display = getActivity().getWindowManager().getDefaultDisplay();
-        final Point size = new Point();
-        display.getSize(size);
-        mAdapter = new Adapter(getActivity(), size);
+        Display display = getActivity().getWindowManager().getDefaultDisplay();
+        int width = display.getWidth();
+        int height = display.getHeight();
+
+        mPager = new ViewPager(getActivity());
+        mPager.setPageTransformer(true, this);
+
+        final Database db = EyeCandyDatabase.getInstance(getActivity());
+        final Session session = db.createSession();
+
+        Query q = session.query(Image.class).filter("animated=?", 1);
+
+        mAdapter = new Adapter(getActivity(), q, new Point(width, height));
 
         final Bundle args = getArguments();
         final Image image = (Image) args.getSerializable("image");
 
         if (image != null) {
-            mLoading = true;
-            final Database db = EyeCandyDatabase.getInstance(getActivity());
-            final Session session = db.createSession();
-            session.query(Image.class).filter("images.id < ?", image.getId()).project("COUNT(1)").scalar(new ScalarListener() {
-                @Override
-                public void onResult(final Object obj) {
-                    Log.d(TAG, "offset = %s", obj);
+            q = q.filter("images.id < ?", image.getId());
 
+            q.project("COUNT(1)").scalar(Long.class, new ScalarListener<Long>() {
+                @Override
+                public void onResult(final Long obj) {
+                    Log.d(TAG, "offset = %s", obj);
                     mAdapter.setOffset((Long)obj);
-                    if (mPager != null)
-                        mPager.setAdapter(mAdapter);
+                    mPager.setAdapter(mAdapter);
                 }
             });
-        }
-
-    }
-
-    @Override
-    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-        mPager = new ViewPager(getActivity());
-        mPager.setPageTransformer(true, this);
-
-        if (!mLoading)
+        } else {
             mPager.setAdapter(mAdapter);
+        }
 
         return mPager;
     }
@@ -124,30 +128,36 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
     public static class Adapter extends PagerAdapter {
 
+        private final Query mQuery;
         private final Point mSize;
-        private WeakReference<Context> mContext;
-        private Picasso mPicasso;
+        private final WeakReference<Context> mContext;
+        private final Picasso mPicasso;
         private long mOffset;
-        private Map<Integer, Image> mImages = new HashMap<Integer, Image>();
+        private final Map<Integer, Image> mImages = new HashMap<Integer, Image>();
+        private int mCount;
 
-        public Adapter(final Context context, final Point size) {
+        public Adapter(final Context context, final Query query, final Point size) {
+            mQuery = query;
             mContext = new WeakReference<Context>(context);
             mPicasso = EyeCandyPicasso.getInstance(context);
             mSize = size;
 
+            final Database db = EyeCandyDatabase.getInstance(context);
+            final Session session = db.createSession();
+
+            mQuery.count(new ScalarListener<Long>() {
+                @Override
+                public void onResult(final Long count) {
+                    Log.d(TAG, "count = %s", count);
+                    mCount = count.intValue();
+                    notifyDataSetChanged();
+                }
+            });
+
         }
 
         private Query getQuery(final int position) {
-            Query rv = null;
-
-            final Context context = mContext.get();
-            if (context != null) {
-                final Database db = EyeCandyDatabase.getInstance(context);
-                final Session session = db.createSession();
-                rv = session.query(Image.class).offset((int) (position + mOffset)).limit(1);
-            }
-
-            return rv;
+            return mQuery.offset((int) (position + mOffset)).limit(1);
         }
 
         @Override
@@ -157,7 +167,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         @Override
         public int getCount() {
-            return 100000;
+            return mCount;
         }
 
         @Override
@@ -170,61 +180,109 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 return null;
 
             final ImageView rv = new ImageView(context);
-
+            rv.setScaleType(ImageView.ScaleType.CENTER_CROP);
             final ViewPager.LayoutParams params = new ViewPager.LayoutParams();
             params.height = ViewPager.LayoutParams.MATCH_PARENT;
             params.width = ViewPager.LayoutParams.MATCH_PARENT;
             rv.setLayoutParams(params);
-            rv.setAlpha(0);
-
-
 
             container.addView(rv);
 
-            final Image i = mImages.get(position);
-            if (i == null)
-                loadItem(rv, position);
-            else
-                loadImage(rv, i);
+            loadItem(position, new FetchListener<Image>() {
+                @Override
+                public void onResult(final Image image) {
+                    Log.d(TAG, "item @ pos %s = %s", position, image);
+                    if (image.isAnimated()) {
+                        loadMovie(rv, image);
+                    } else {
+                        loadImage(rv, image);
+                    }
+                }
+            });
+
+            //loadItem(position + 1, new FetchListener<Image>() {
+            //
+            //
+            //   @Override
+            //    public void on˚Result(final Image next) {
+            //        Log.d(TAG, "prefetching item @ pos = %s - %s", position + 1, next);
+            //        mPicasso.load(next.getUrl()).fetch();
+            //    }
+            //});
 
             return rv;
         }
 
-        @Override
-        public void destroyItem(final ViewGroup container, final int position, final Object object) {
-            container.removeView((ImageView)object);
-        }
-
-        private void loadItem(final ImageView v, final int position) {
-
-            Log.d(TAG, "loading item at position %s", position);
-
-            final Query query = getQuery(position);
-            query.first(new FetchListener<Image>() {
-                @Override
-                public void onResult(final Image result) {
-                    mImages.put(position, result);
-
-                    Log.d(TAG, "item @ pos %s = %s", position, result);
-                    loadImage(v, result);
-                }
-            });
-        }
 
         private void loadImage(final ImageView v, final Image image) {
             Log.d(TAG, "loading image %s", image.getUrl());
-            mPicasso.load(image.getUrl()).resize(mSize.x, mSize.y).centerCrop().into(v, new Callback() {
+            mPicasso.load(image.getUrl()).resize(mSize.x, mSize.y).noFade().skipMemoryCache().centerCrop().into(v, new Callback() {
                 @Override
                 public void onSuccess() {
                     Log.d(TAG, "loaded image");
-                }
-
-                @Override
+                }  @Override
                 public void onError() {
                     Log.d(TAG, "error loading image!");
                 }
             });
         }
+
+
+        private void loadMovie(final ImageView view, final Image image) {
+
+            Log.d(TAG, "loading movie %s", image.getUrl());
+            final Context context = mContext.get();
+            if (context != null) {
+                final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(context);
+                requestQueue.add(new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
+                    @Override
+                    public void onResponse(final Movie movie) {
+                        Log.d(TAG, "loaded movie - %s", image);
+                        final Context context = mContext.get();
+                        if (context != null) {
+                            final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie);
+                            view.setBackground(drawable);
+                            drawable.setVisible(true, true);
+
+                            Log.d(TAG, "movie is %s x %s @ %s ms", movie.width(), movie.height(), movie.duration());
+
+                        }
+                    }
+                }, new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(final VolleyError error) {
+                        Log.e(TAG, "error loading movie - " + image, error);
+                    }
+                }));
+            }
+        }
+
+        @Override
+        public void destroyItem(final ViewGroup container, final int position, final Object object) {
+            container.removeView((ImageView)object);
+            // FIXME recycle drawable
+        }
+
+        private void loadItem(final int position, final FetchListener<Image> listener) {
+
+            Log.d(TAG, "loading item at position %s", position);
+
+            final Image i = mImages.get(position);
+            if (i != null) {
+                listener.onResult(i);
+                return;
+            }
+
+            getQuery(position).first(new FetchListener<Image>() {
+                @Override
+                public void onResult(final Image result) {
+                    mImages.put(position, result);
+                    listener.onResult(result);
+                }
+            });
+        }
+
 
         public void setOffset(final long offset) {
             mOffset = offset;
