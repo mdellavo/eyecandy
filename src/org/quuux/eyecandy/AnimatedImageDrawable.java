@@ -43,6 +43,13 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
         setCallback(this);
     }
 
+    public void recycle() {
+        mBitmap.recycle();
+    }
+
+    public boolean isRecycled() {
+        return mBitmap.isRecycled();
+    }
 
     @Override
     public int getIntrinsicHeight() {
@@ -55,6 +62,9 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
     }
 
     private void render(final int time) {
+        if (isRecycled())
+            throw new IllegalStateException("bitmap is recycled");
+
         mMovie.setTime(time);
         mMovie.draw(mCanvas, 0, 0);
     }

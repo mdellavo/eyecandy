@@ -27,6 +27,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageRequest;
 import com.nineoldandroids.view.ViewHelper;
+import com.nineoldandroids.view.ViewPropertyAnimator;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
@@ -180,7 +181,9 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
-            Target target;
+            Bitmap backingBitmap;
+            Bitmap bitmap;
+            AnimatedImageDrawable movie;
             ImageView image;
             ImageView backing;
             ImageView spinner;
@@ -298,6 +301,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     Log.d(TAG, "got image reponse %s - %s (%s x %s) ",
                             image, bitmap, bitmap.getWidth(), bitmap.getHeight());
                     holder.image.setImageBitmap(bitmap);
+                    holder.bitmap = bitmap;
                     setBacking(holder, bitmap);
                     onImageLoaded(holder);
                 }
@@ -336,6 +340,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     holder.image.setImageDrawable(drawable);
                     drawable.setVisible(true, true);
 
+                    holder.movie = drawable;
+
                     setBacking(holder, drawable.getFrame(movie.duration()/2));
 
                     final long t2 = SystemClock.uptimeMillis();
@@ -357,7 +363,27 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         @Override
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
-            container.removeView((View)object);
+            final View view = (View)object;
+            final Holder holder = (Holder) view.getTag();
+
+            if (holder.bitmap != null) {
+                Log.d(TAG, "recycling bitmap");
+                holder.bitmap.recycle();
+                holder.bitmap = null;
+            }
+
+            if (holder.backingBitmap != null) {
+                Log.d(TAG, "recycling backing bitmap");
+                holder.backingBitmap.recycle();
+                holder.backingBitmap = null;
+            }
+
+            if (holder.movie != null) {
+                holder.movie.recycle();
+                holder.movie = null;
+            }
+
+            container.removeView(view);
             // FIXME recycle drawable
         }
 
@@ -369,20 +395,29 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             final long t1 = SystemClock.uptimeMillis();
 
-            final Bitmap backing = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
-            ImageUtils.blur(context, bitmap, backing, 25);
-            holder.backing.setVisibility(View.VISIBLE);
-            final long t2 = SystemClock.uptimeMillis();
+            ImageUtils.blur(context, bitmap, 25, new ImageUtils.Listener() {
+                @Override
+                public void complete(final Bitmap backing) {
+                    holder.backing.setVisibility(View.VISIBLE);
+                    final long t2 = SystemClock.uptimeMillis();
 
-            Log.d(TAG, "generated backing (%s x %s) in %s ms",
-                    backing.getWidth(), backing.getHeight(), t2 - t1);
+                    Log.d(TAG, "generated backing (%s x %s) in %s ms",
+                            backing.getWidth(), backing.getHeight(), t2 - t1);
 
-            holder.backing.setImageBitmap(backing);
-            ViewHelper.setAlpha(holder.backing, .4f);
+                    holder.backing.setImageBitmap(backing);
+                    holder.backingBitmap = backing;
+
+                    ViewHelper.setAlpha(holder.backing, 0);
+                    ViewPropertyAnimator.animate(holder.backing).alpha(.4f).setDuration(250).start();
+                }
+            });
         }
 
         private void onImageLoaded(final Holder holder) {
             holder.image.setVisibility(View.VISIBLE);
+            ViewHelper.setAlpha(holder.image, 0);
+            ViewPropertyAnimator.animate(holder.image).alpha(1).setDuration(250).start();
+
             holder.spinner.setVisibility(View.GONE);
         }
 
