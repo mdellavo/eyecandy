@@ -30,6 +30,7 @@ import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
+import org.quuux.eyecandy.utils.ImageUtils;
 import org.quuux.eyecandy.utils.MovieRequest;
 import org.quuux.orm.CountListener;
 import org.quuux.orm.Database;
@@ -268,6 +269,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     Log.d(TAG, "got image reponse %s - %s (%s x %s) ",
                             image, bitmap, bitmap.getWidth(), bitmap.getHeight());
                     holder.image.setImageBitmap(bitmap);
+                    setBacking(holder, bitmap);
                     onImageLoaded(holder);
                 }
             }, mSize.x, mSize.y, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
@@ -292,19 +294,20 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 @Override
                 public void onResponse(final Movie movie) {
 
+                    final Context context = mContext.get();
+                    if (context == null)
+                        return;
+
                     if (movie == null || movie.width() == 0 || movie.height() == 0 || movie.duration() == 0) {
                         Log.d(TAG, "error loading movie %s", image);
                         return;
                     }
 
-                    final Context context = mContext.get();
-                    if (context != null) {
-                        final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie, null);
-                        holder.image.setImageDrawable(drawable);
-                        drawable.setVisible(true, true);
+                    final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie, null);
+                    holder.image.setImageDrawable(drawable);
+                    drawable.setVisible(true, true);
 
-
-                    }
+                    setBacking(holder, drawable.getFrame(movie.duration()/2));
 
                     final long t2 = SystemClock.uptimeMillis();
                     Log.d(TAG, "loaded movie - %s (%s x %s @ %s ms) in %d ms", image, movie.width(), movie.height(), movie.duration(), t2-t1);
@@ -329,10 +332,27 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             // FIXME recycle drawable
         }
 
-       private void onImageLoaded(final Holder  holder) {
-           holder.image.setVisibility(View.VISIBLE);
-           holder.spinner.setVisibility(View.GONE);
-       }
+        private void setBacking(final Holder holder, final Bitmap bitmap) {
+
+            final Context context = mContext.get();
+            if (context == null)
+                return;
+
+            final long t1 = SystemClock.uptimeMillis();
+            final Bitmap backing = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(),
+                    Bitmap.Config.ARGB_8888);
+            ImageUtils.blur(context, bitmap, backing, 25);
+            holder.backing.setImageBitmap(backing);
+            holder.backing.setVisibility(View.VISIBLE);
+            final long t2 = SystemClock.uptimeMillis();
+
+            Log.d(TAG, "generated backing in %s ms", t2 - t1);
+        }
+
+        private void onImageLoaded(final Holder holder) {
+            holder.image.setVisibility(View.VISIBLE);
+            holder.spinner.setVisibility(View.GONE);
+        }
 
         private void loadItem(final int position, final FetchListener<Image> listener) {
 

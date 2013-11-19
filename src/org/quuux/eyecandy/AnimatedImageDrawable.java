@@ -54,14 +54,22 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
         return mMovie.width();
     }
 
+    private void render(final int time) {
+        mMovie.setTime(time);
+        mMovie.draw(mCanvas, 0, 0);
+    }
+
+    public Bitmap getFrame(final int time) {
+        render(time);
+        return mBitmap;
+    }
+
     @Override
     public void draw(final Canvas canvas) {
         if (mMovie == null || mMovie.duration() == 0)
             return;
         final int relTime = (int) ((SystemClock.uptimeMillis() - mStartTime) % mMovie.duration());
-        mMovie.setTime(relTime);
-        mMovie.draw(mCanvas, 0, 0);
-        canvas.drawBitmap(mBitmap, 0, 0, null);
+        canvas.drawBitmap(getFrame(relTime), 0, 0, null);
         invalidateSelf();
     }
 
