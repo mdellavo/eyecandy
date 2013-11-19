@@ -378,6 +378,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     backing.getWidth(), backing.getHeight(), t2 - t1);
 
             holder.backing.setImageBitmap(backing);
+            ViewHelper.setAlpha(holder.backing, .4f);
         }
 
         private void onImageLoaded(final Holder holder) {
