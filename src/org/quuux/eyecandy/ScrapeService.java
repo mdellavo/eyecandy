@@ -12,6 +12,7 @@ import org.quuux.eyecandy.utils.OkHttpStack;
 import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
+import org.quuux.orm.QueryListener;
 import org.quuux.orm.Session;
 
 import java.util.ArrayList;
@@ -26,70 +27,9 @@ public class ScrapeService extends IntentService {
     public static String EXTRA_SUBREDDIT = "subreddit";
     public static final String EXTRA_NUM_SCRAPED = "num-scraped";
 
-    // http://headlikeanorange.tumblr.com/
-
-    private static final String SUBREDDITS[] = {
-
-            "Cinemagraphs",
-            "gifs",
-            "naturegifs",
-            "oldschoolcool",
-
-            "earthporn",
-            "villageporn",
-            "cityporn",
-            "spaceporn",
-            "waterporn",
-            "abandonedporn",
-            "animalporn",
-            "humanporn",
-            "botanicalporn",
-            "adrenalineporn",
-            "destructionporn",
-            "movieposterporn",
-            "albumartporn",
-            "machineporn",
-            //"newsporn",
-            "geekporn",
-            "bookporn",
-            //"mapporn",
-            "adporn",
-            "designporn",
-            "roomporn",
-            //"militaryporn",
-            //"historyporn",
-            //"quotesporn",
-            "skyporn",
-            "fireporn",
-            "infrastructureporn",
-            "macroporn",
-            "instrumentporn",
-            "climbingporn",
-            "architectureporn",
-            "artporn",
-            "cemeteryporn",
-            //"carporn",
-            "fractalporn",
-            "exposureporn",
-            //"gunporn",
-            //"culinaryporn",
-            "dessertporn",
-            "agricultureporn",
-            "boatporn",
-            "geologyporn",
-            "futureporn",
-            "winterporn",
-            "JoshuaTree",
-            "NZPhotos",
-            "EyeCandy",
-            "ruralporn",
-            "spaceart"
-            //"foodporn"
-    };
-
     private RequestQueue mRequestQueue;
 
-    private int mTaskCount = 0;
+    private static int sTaskCount = 0;
     private EyeCandyDatabase mDatabase;
 
     private static final Object sLock = new Object();
@@ -99,21 +39,42 @@ public class ScrapeService extends IntentService {
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
+    protected void onHandleIntent(final Intent intent) {
+
         mRequestQueue = EyeCandyVolley.getRequestQueue(this);
 
-        mDatabase = EyeCandyDatabase.getInstance(this);
- 
-        for (int i=0; i<SUBREDDITS.length; i++) {
-            Log.d(TAG, "scraping %s", SUBREDDITS[i]);
-            scrapeImgur(SUBREDDITS[i]);
-            mTaskCount++;
+        final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
+        if (subreddit != null) {
+            scrapeImgur(subreddit);
+        } else {
+            scrapeAllSubreddits();
         }
+    }
+
+    private void scrapeAllSubreddits() {
+        mDatabase = EyeCandyDatabase.getInstance(this);
+
+        final Session session = mDatabase.createSession();
+        session.query(Subreddit.class).all(new QueryListener<Subreddit>() {
+            @Override
+            public void onResult(final List<Subreddit> subreddits) {
+
+                if (subreddits == null) {
+                    Log.e(TAG, "no subreddits to scrape!");
+                    return;
+                }
+
+                for (Subreddit subreddit : subreddits) {
+                    scrapeImgur(subreddit);
+                }
+
+            }
+        });
 
     }
 
     public void onScrapeComplete(final Subreddit subreddit, final int numScraped) {
-        mTaskCount--;
+        sTaskCount--;
 
         //Log.d(TAG, "scrape complete: %d", numScraped);
 
@@ -122,36 +83,23 @@ public class ScrapeService extends IntentService {
         intent.putExtra(EXTRA_NUM_SCRAPED, numScraped);
         sendBroadcast(intent);
 
-        if (mTaskCount == 0) {
+        if (sTaskCount == 0) {
             stopSelf();
         }
     }
 
 
-    private void scrapeImgur(final String subreddit) {
+    private void scrapeImgur(final Subreddit subreddit) {
 
-        final Session session = mDatabase.createSession();
+        final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
+        final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
 
-        session.query(Subreddit.class).filter("subreddit = ?", subreddit).first(new FetchListener<Subreddit>() {
-            @Override
-            public void onResult(Subreddit sub) {
+        Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
 
-                if (sub == null)
-                    sub = new Subreddit(subreddit);
+        if (!doScrape)
+            return;
 
-                final long timeSinceLastScrape = System.currentTimeMillis() - sub.getLastScrape();
-                final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
-
-                Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
-
-                if (doScrape)
-                    doScrape(sub);
-
-            }
-        });
-
-    }
-    private void doScrape(final Subreddit subreddit) {
+        sTaskCount++;
 
         final String url = String.format("http://imgur.com/r/%s.json", subreddit.getSubreddit());
 
@@ -167,7 +115,7 @@ public class ScrapeService extends IntentService {
                             final Session session = mDatabase.createSession();
 
                             for(final ImgurImage i : response.data) {
-                                final Image img =  Image.fromImgur(i.getUrl(), i.title, i.isAnimated());
+                                final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
                                 session.add(img);
                             }
 

@@ -39,12 +39,14 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
     private static final String TAG = Log.buildTag(GalleryFragment.class);
 
     public static interface Listener {
-        void showImage(Image i);
+        void showImage(Query query, int position);
     }
 
     public static final int THUMB_SIZE = 100;
 
     private Listener mListener;
+
+    private Query mQuery;
 
     private ViewGroup mContainer;
     private GridView mGridView;
@@ -85,8 +87,8 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         final Database db = EyeCandyDatabase.getInstance(context);
         final Session session = db.createSession();
-        final Query query = session.query(Image.class).orderBy("id DESC");
-        mThumbnailsAdapter = new ThumbnailAdapter(context, query);
+        mQuery = session.query(Image.class).orderBy("id DESC");
+        mThumbnailsAdapter = new ThumbnailAdapter(context, mQuery);
 
     }
 
@@ -154,7 +156,7 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         if (item.getItemId() == R.id.select) {
             final Thumbnailholder tag = (Thumbnailholder) mZoomedImage.getTag();
             if (tag != null)
-                mListener.showImage(tag.image);
+                mListener.showImage(mQuery, mThumbnailsAdapter.getPositionForItem(tag.image));
 
             return true;
         }
@@ -357,6 +359,7 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
     static class Thumbnailholder {
         Image image;
         Target callback;
+        int position;
     }
 
     class ThumbnailAdapter extends QueryAdapter<Image> {
@@ -382,6 +385,8 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         @Override
         protected void bindView(final Context context, final Image item, final View view, final ViewGroup parent) {
+
+
 
             Log.d(TAG, "binding item %s (%s)", item.getUrl(), item.getThumbnailUrl());
 

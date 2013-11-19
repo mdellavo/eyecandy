@@ -17,11 +17,10 @@ import java.security.MessageDigest;
 @Table(name="images")
 public class Image implements Entity, Serializable {
 
-    public enum Source {
-        REDDIT,
-        IMGUR
-    };
-    
+
+    @Column()
+    private String subreddit;
+
     public enum Status {
         NOT_FETCHED,
         FETCHED,
@@ -32,9 +31,6 @@ public class Image implements Entity, Serializable {
 
     @Column(primaryKey = true)
     private long id = -1;
-
-    @Column()
-    private Source source;
 
     @Column(unique = true, nullable = false)
     private String url;
@@ -63,8 +59,8 @@ public class Image implements Entity, Serializable {
     @Column()
     private boolean animated;
 
-    protected Image(final Source source, final String url, final String title, final boolean animated, final Status status, final int timesShown) {
-        this.source = source;
+    protected Image(final Subreddit subreddit, final String url, final String title, final boolean animated, final Status status, final int timesShown) {
+        this.subreddit = subreddit.getSubreddit();
         this.url = url;
         this.title = title;
         this.animated = animated;
@@ -72,8 +68,8 @@ public class Image implements Entity, Serializable {
         this.timesShown = timesShown;
     }
 
-    public static Image fromImgur(final String url, final String title, final boolean animated) {
-        return new Image(Source.IMGUR, url, title, animated, Status.NOT_FETCHED, 0);
+    public static Image fromImgur(final Subreddit subreddit, final String url, final String title, final boolean animated) {
+        return new Image(subreddit, url, title, animated, Status.NOT_FETCHED, 0);
     }
 
 
@@ -96,8 +92,8 @@ public class Image implements Entity, Serializable {
         return id;
     }
 
-    public Source getSource() {
-        return source;
+    public String getSubreddit() {
+        return subreddit;
     }
 
     public String getUrl() {

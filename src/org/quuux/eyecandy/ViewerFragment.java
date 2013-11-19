@@ -51,12 +51,17 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     private ViewPager mPager;
     private boolean mLoading;
 
-    public static ViewerFragment newInstance(final Image image) {
+    public static ViewerFragment newInstance(final Query query, final int position) {
         final ViewerFragment rv = new ViewerFragment();
         final Bundle args = new Bundle();
-        args.putSerializable("image", image);
+        args.putSerializable("query", query);
+        args.putInt("position", position);
         rv.setArguments(args);
         return rv;
+    }
+
+    public static ViewerFragment newInstance(final Query query) {
+        return newInstance(query, 0);
     }
 
     @Override
@@ -96,29 +101,42 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         final Database db = EyeCandyDatabase.getInstance(getActivity());
         final Session session = db.createSession();
 
-        Query q = session.query(Image.class);
-
-        mAdapter = new Adapter(getActivity(), q, new Point(width, height));
-
         final Bundle args = getArguments();
-        final Image image = (Image) args.getSerializable("image");
 
-        if (image != null) {
-            q = q.filter("images.id < ?", image.getId());
-
-            q.project("COUNT(1)").scalar(Long.class, new ScalarListener<Long>() {
-                @Override
-                public void onResult(final Long obj) {
-                    Log.d(TAG, "offset = %s", obj);
-                    mAdapter.setOffset((Long)obj);
-                    mPager.setAdapter(mAdapter);
-                }
-            });
+        Query q = null;
+        if (savedInstanceState == null) {
+            q = (Query) getArguments().getSerializable("query");
         } else {
-            mPager.setAdapter(mAdapter);
+            q = (Query) savedInstanceState.getSerializable("query");
         }
 
+        mAdapter = new Adapter(getActivity(), session.bind(q), new Point(width, height));
+
+        final int position;
+        if (savedInstanceState != null && savedInstanceState.containsKey("position"))
+            position = savedInstanceState.getInt("position");
+        else
+            position = getArguments().getInt("position");
+
+        mPager.setAdapter(mAdapter);
+
+        // WHY?!
+        mPager.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "setting position - %s", position);
+                mPager.setCurrentItem(position);
+            }
+        }, 100);
+
         return rv;
+    }
+
+    @Override
+    public void onSaveInstanceState(final Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putSerializable("query", mAdapter.getQuery());
+        outState.putInt("position", mPager.getCurrentItem());
     }
 
     @Override
@@ -192,6 +210,15 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 }
             });
 
+        }
+
+        @Override
+        public int getItemPosition(final Object object) {
+            return POSITION_NONE;
+        }
+
+        public Query getQuery() {
+            return mQuery;
         }
 
         private Query getQuery(final int position) {
@@ -339,14 +366,16 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 return;
 
             final long t1 = SystemClock.uptimeMillis();
-            final Bitmap backing = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(),
-                    Bitmap.Config.ARGB_8888);
+
+            final Bitmap backing = Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
             ImageUtils.blur(context, bitmap, backing, 25);
-            holder.backing.setImageBitmap(backing);
             holder.backing.setVisibility(View.VISIBLE);
             final long t2 = SystemClock.uptimeMillis();
 
-            Log.d(TAG, "generated backing in %s ms", t2 - t1);
+            Log.d(TAG, "generated backing (%s x %s) in %s ms",
+                    backing.getWidth(), backing.getHeight(), t2 - t1);
+
+            holder.backing.setImageBitmap(backing);
         }
 
         private void onImageLoaded(final Holder holder) {
@@ -389,6 +418,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
                 mAdapter.notifyDataSetChanged();
+
             }
 
         }

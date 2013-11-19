@@ -16,21 +16,25 @@ import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import org.quuux.eyecandy.utils.ViewServer;
-import org.quuux.orm.Database;
+import org.quuux.orm.Query;
 
 public class MainActivity
         extends FragmentActivity 
         implements ActionBar.OnNavigationListener, 
-                   GalleryFragment.Listener {
+                   View.OnSystemUiVisibilityChangeListener,
+                   GalleryFragment.Listener,
+                   SourcesFragment.Listener {
 
 
     private static final String TAG = "MainActivity";
     private static final String FRAG_RANDOM = "random";
     private static final String FRAG_GALLERY = "gallery";
     private static final String FRAG_VIEWER = "viewer";
+    private static final String FRAG_SOURCES = "subreddits";
 
     final private Handler mHandler = new Handler();
 
+    GestureDetector mGestureDetector;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -38,7 +42,12 @@ public class MainActivity
         super.onCreate(savedInstanceState);
 
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_FULLSCREEN |
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        );
 
         final ActionBar actionBar = getActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
@@ -47,13 +56,52 @@ public class MainActivity
         final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.modes, android.R.layout.simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
+        mGestureDetector = new GestureDetector(this, new GestureDetector.OnGestureListener() {
+            @Override
+            public boolean onDown(final MotionEvent e) {
+                return false;
+            }
+
+            @Override
+            public void onShowPress(final MotionEvent e) {
+
+            }
+
+            @Override
+            public boolean onSingleTapUp(final MotionEvent e) {
+                summon();
+                return true;
+            }
+
+            @Override
+            public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
+                return false;
+            }
+
+            @Override
+            public void onLongPress(final MotionEvent e) {
+
+            }
+
+            @Override
+            public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
+                return false;
+            }
+        });
+
         summon();
 
         View v = findViewById(android.R.id.content);
-        v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+        v.setOnSystemUiVisibilityChangeListener(this);
+        hideSystemUi();
 
-        final Intent intent = new Intent(this, ScrapeService.class);
-        startService(intent);
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
+                startService(intent);
+            }
+       }, 500);
 
         ViewServer.get(this).addWindow(this);
 
@@ -95,9 +143,10 @@ public class MainActivity
         super.onBackPressed();
     }
 
+
     @Override
     public boolean dispatchTouchEvent(final MotionEvent ev) {
-        summon();
+        mGestureDetector.onTouchEvent(ev);
         return super.dispatchTouchEvent(ev);
     }
 
@@ -106,7 +155,7 @@ public class MainActivity
 
         switch (position) {
             case 0:
-                onShowViewer();
+                onShowImage();
                 break;
 
             case 1:
@@ -116,14 +165,34 @@ public class MainActivity
             case 2:
                 onShowRandom();
                 break;
+
+            case 3:
+                onShowSources();
+
+                break;
         }
 
         return true;
     }
 
+
     @Override
-    public void showImage(final Image i) {
-        onShowImage(i);
+    public void onSystemUiVisibilityChange(final int visibility) {
+        final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0;
+        if (isVisible)
+            summon();
+    }
+
+
+    private void hideSystemUi() {
+        final View v = findViewById(android.R.id.content);
+        v.setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        );
+
     }
 
     private Fragment getCurrentFragment() {
@@ -158,21 +227,35 @@ public class MainActivity
         swapFrag(frag, FRAG_GALLERY);
     }
 
-    private void onShowImage(final Image image) {
+    public void showImage(final Query query, final int position) {
         Fragment frag = getFrag(FRAG_VIEWER);
         if (frag == null)
-            frag = ViewerFragment.newInstance(image);
+            frag = ViewerFragment.newInstance(query, position);
         swapFrag(frag, FRAG_VIEWER);
     }
 
-    private void onShowViewer() {
-        onShowImage(null);
+    public void showImage(final Query query) {
+        showImage(query, 0);
     }
 
+    private void onShowImage() {
+
+        final EyeCandyDatabase db = EyeCandyDatabase.getInstance(this);
+        final Query q = db.createSession().query(Image.class).orderBy("timesShown, RANDOM()");
+        showImage(q);
+    }
+
+    private void onShowSources() {
+        Fragment frag = getFrag(FRAG_SOURCES);
+        if (frag == null)
+            frag = SourcesFragment.newInstance();
+        swapFrag(frag, FRAG_SOURCES);
+    }
 
     private void dismiss() {
         //Log.d(TAG, "dismiss ui");
         getActionBar().hide();
+        hideSystemUi();
     }
 
     private void dismissDelayed(long t) {

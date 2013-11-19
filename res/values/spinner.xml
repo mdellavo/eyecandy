@@ -4,5 +4,6 @@
         <item>Viewer</item>
         <item>Gallery</item>
         <item>Random</item>
+        <item>Sources</item>
     </string-array>
 </resources>
