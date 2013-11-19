@@ -20,6 +20,8 @@
     <orderEntry type="library" name="libs" level="project" />
     <orderEntry type="module" module-name="volley" />
     <orderEntry type="module" module-name="orm-android" />
+    <orderEntry type="module" module-name="nineoldandroids" />
+    <orderEntry type="module" module-name="appcompat" />
   </component>
 </module>
 

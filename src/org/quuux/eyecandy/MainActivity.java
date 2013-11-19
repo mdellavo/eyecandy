@@ -1,6 +1,5 @@
 package org.quuux.eyecandy;
 
-import android.app.ActionBar;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,9 +7,10 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.ActionBarActivity;
 import android.view.*;
 import android.widget.ArrayAdapter;
 import android.widget.Toast;
@@ -19,8 +19,8 @@ import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.Query;
 
 public class MainActivity
-        extends FragmentActivity 
-        implements ActionBar.OnNavigationListener, 
+        extends ActionBarActivity
+        implements ActionBar.OnNavigationListener,
                    View.OnSystemUiVisibilityChangeListener,
                    GalleryFragment.Listener,
                    SourcesFragment.Listener {
@@ -49,7 +49,7 @@ public class MainActivity
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         );
 
-        final ActionBar actionBar = getActionBar();
+        final ActionBar actionBar = getSupportActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
 
@@ -254,7 +254,7 @@ public class MainActivity
 
     private void dismiss() {
         //Log.d(TAG, "dismiss ui");
-        getActionBar().hide();
+        getSupportActionBar().hide();
         hideSystemUi();
     }
 
@@ -266,7 +266,7 @@ public class MainActivity
     private void summon() {
         //Log.d(TAG, "summon ui");
 
-        getActionBar().show();
+        getSupportActionBar().show();
         dismissDelayed(2500);
     }
 

@@ -26,6 +26,7 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageRequest;
+import com.nineoldandroids.view.ViewHelper;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
@@ -142,23 +143,24 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void transformPage(final View view, final float position) {
         int pageWidth = view.getWidth();
-        view.setTranslationX(pageWidth * -position);
+
+        ViewHelper.setTranslationX(view, pageWidth * -position);
 
         if (position < -1) { // [-Infinity,-1)
             // This page is way off-screen to the left.
-            view.setAlpha(0);
+            ViewHelper.setAlpha(view, 0);
         } else if (position < 0) { // [-1,0]
             // Use the default slide transition when moving to the left page
-            view.setAlpha(1-Math.abs(position));
+            ViewHelper.setAlpha(view, 1-Math.abs(position));
             //view.setTranslationX(pageWidth * position);
             //view.setScaleX(1);
             //view.setScaleY(1);
         } else if (position == 0) {
-            view.setAlpha(1);
-            view.setTranslationX(0);
+            ViewHelper.setAlpha(view, 1);
+            ViewHelper.setTranslationX(view, 0);
         } else if (position < 1) { // (0,1]
             // Fade the page out.
-            view.setAlpha(1 - position);
+            ViewHelper.setAlpha(view, 1 - position);
 
             // Counteract the default slide transition
 
@@ -170,7 +172,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         } else { // (1,+Infinity]
             // This page is way off-screen to the right.
-            view.setAlpha(0);
+            ViewHelper.setAlpha(view, 0);
         }
 
     }
