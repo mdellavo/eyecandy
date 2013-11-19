@@ -1,9 +1,11 @@
 package org.quuux.eyecandy;
 
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
@@ -21,7 +23,6 @@ import org.quuux.orm.Query;
 public class MainActivity
         extends ActionBarActivity
         implements ActionBar.OnNavigationListener,
-                   View.OnSystemUiVisibilityChangeListener,
                    GalleryFragment.Listener,
                    SourcesFragment.Listener {
 
@@ -91,8 +92,7 @@ public class MainActivity
 
         summon();
 
-        View v = findViewById(android.R.id.content);
-        v.setOnSystemUiVisibilityChangeListener(this);
+        setupSystemUi();
         hideSystemUi();
 
         mHandler.postDelayed(new Runnable() {
@@ -175,24 +175,35 @@ public class MainActivity
         return true;
     }
 
+    @TargetApi(11)
+    private void setupSystemUi() {
+        final View v = findViewById(android.R.id.content);
 
-    @Override
-    public void onSystemUiVisibilityChange(final int visibility) {
-        final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0;
-        if (isVisible)
-            summon();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            v.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+                @Override
+                public void onSystemUiVisibilityChange(final int visibility) {
+                    final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0;
+                    if (isVisible)
+                        summon();
+                }
+            });
+        }
     }
 
-
+    @TargetApi(11)
     private void hideSystemUi() {
         final View v = findViewById(android.R.id.content);
-        v.setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                View.SYSTEM_UI_FLAG_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                View.SYSTEM_UI_FLAG_IMMERSIVE
-        );
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            v.setSystemUiVisibility(
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE
+            );
+        }
 
     }
 

@@ -45,6 +45,9 @@ public class Image implements Entity, Serializable {
     private int timesShown;
 
     @Column()
+    private long lastShown;
+
+    @Column()
     private int width;
 
     @Column()
@@ -126,6 +129,10 @@ public class Image implements Entity, Serializable {
         return animated;
     }
 
+    public void stamp() {
+        lastShown = System.currentTimeMillis();
+        timesShown++;
+    }
 
 }
 

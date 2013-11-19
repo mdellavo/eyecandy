@@ -67,6 +67,63 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     @Override
+    public void onCreate(final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        final Display display = getActivity().getWindowManager().getDefaultDisplay();
+        int width = display.getWidth();
+        int height = display.getHeight();
+
+        final Bundle args = getArguments();
+
+        Query q = null;
+        if (savedInstanceState == null) {
+            q = (Query) getArguments().getSerializable("query");
+        } else {
+            q = (Query) savedInstanceState.getSerializable("query");
+        }
+
+        final Database db = EyeCandyDatabase.getInstance(getActivity());
+        final Session session = db.createSession();
+        mAdapter = new Adapter(getActivity(), session.bind(q), new Point(width, height));
+
+    }
+
+    @Override
+    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
+
+        final View rv = inflater.inflate(R.layout.viewer, container, false);
+
+        mPager = (ViewPager) rv.findViewById(R.id.pager);
+        mPager.setPageTransformer(true, this);
+
+        mPager.setAdapter(mAdapter);
+
+        return rv;
+    }
+
+    @Override
+    public void onViewCreated(final View view, final Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        final int position;
+        if (savedInstanceState != null && savedInstanceState.containsKey("position"))
+            position = savedInstanceState.getInt("position");
+        else
+            position = getArguments().getInt("position");
+
+        // WHY?!
+        mPager.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG, "setting position - %s", position);
+                mPager.setCurrentItem(position);
+            }
+        }, 100);
+
+    }
+
+    @Override
     public void onResume() {
         super.onResume();
 
@@ -86,52 +143,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         if (context != null) {
             context.unregisterReceiver(mBroadcastReceiver);
         }
-    }
-
-    @Override
-    public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-
-        final View rv = inflater.inflate(R.layout.viewer, container, false);
-
-        final Display display = getActivity().getWindowManager().getDefaultDisplay();
-        int width = display.getWidth();
-        int height = display.getHeight();
-
-        mPager = (ViewPager) rv.findViewById(R.id.pager);
-        mPager.setPageTransformer(true, this);
-
-        final Database db = EyeCandyDatabase.getInstance(getActivity());
-        final Session session = db.createSession();
-
-        final Bundle args = getArguments();
-
-        Query q = null;
-        if (savedInstanceState == null) {
-            q = (Query) getArguments().getSerializable("query");
-        } else {
-            q = (Query) savedInstanceState.getSerializable("query");
-        }
-
-        mAdapter = new Adapter(getActivity(), session.bind(q), new Point(width, height));
-
-        final int position;
-        if (savedInstanceState != null && savedInstanceState.containsKey("position"))
-            position = savedInstanceState.getInt("position");
-        else
-            position = getArguments().getInt("position");
-
-        mPager.setAdapter(mAdapter);
-
-        // WHY?!
-        mPager.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                Log.d(TAG, "setting position - %s", position);
-                mPager.setCurrentItem(position);
-            }
-        }, 100);
-
-        return rv;
     }
 
     @Override
@@ -276,6 +287,13 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     } else {
                         loadImage(holder, image);
                     }
+
+                    final EyeCandyDatabase db = EyeCandyDatabase.getInstance(context);
+                    final Session session = db.createSession();
+                    image.stamp();
+                    session.add(image);
+                    session.commit();
+
                 }
             });
 
@@ -456,7 +474,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
                 mAdapter.notifyDataSetChanged();
-
             }
 
         }

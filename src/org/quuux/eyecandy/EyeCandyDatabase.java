@@ -17,7 +17,7 @@ import java.util.Set;
 public class EyeCandyDatabase extends Database {
 
     private static final String NAME = "eyecandy.db";
-    private static final int VERSION = 8;
+    private static final int VERSION = 9;
     private static final String TAG = Log.buildTag(EyeCandyDatabase.class);
 
     private static EyeCandyDatabase instance = null;
