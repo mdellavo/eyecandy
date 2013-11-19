@@ -10,6 +10,8 @@ import com.android.volley.toolbox.Volley;
 import org.quuux.eyecandy.utils.GsonRequest;
 import org.quuux.eyecandy.utils.OkHttpStack;
 import org.quuux.orm.Database;
+import org.quuux.orm.Entity;
+import org.quuux.orm.FetchListener;
 import org.quuux.orm.Session;
 
 import java.util.ArrayList;
@@ -18,12 +20,11 @@ import java.util.List;
 public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
+    private static final long SCRAPE_INTERVAL =  1000 * 60 * 60 * 2;
 
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
-
-    static {
-        Database.attach(Image.class);
-    }
+    public static String EXTRA_SUBREDDIT = "subreddit";
+    public static final String EXTRA_NUM_SCRAPED = "num-scraped";
 
     // http://headlikeanorange.tumblr.com/
 
@@ -32,6 +33,7 @@ public class ScrapeService extends IntentService {
             "Cinemagraphs",
             "gifs",
             "naturegifs",
+            "oldschoolcool",
 
             "earthporn",
             "villageporn",
@@ -110,12 +112,14 @@ public class ScrapeService extends IntentService {
 
     }
 
-    public void onScrapeComplete(int numScraped) {
+    public void onScrapeComplete(final Subreddit subreddit, final int numScraped) {
         mTaskCount--;
 
         //Log.d(TAG, "scrape complete: %d", numScraped);
 
         final Intent intent = new Intent(ACTION_SCRAPE_COMPLETE);
+        intent.putExtra(EXTRA_SUBREDDIT, subreddit);
+        intent.putExtra(EXTRA_NUM_SCRAPED, numScraped);
         sendBroadcast(intent);
 
         if (mTaskCount == 0) {
@@ -126,7 +130,30 @@ public class ScrapeService extends IntentService {
 
     private void scrapeImgur(final String subreddit) {
 
-        final String url = String.format("http://imgur.com/r/%s.json", subreddit);
+        final Session session = mDatabase.createSession();
+
+        session.query(Subreddit.class).filter("subreddit = ?", subreddit).first(new FetchListener<Subreddit>() {
+            @Override
+            public void onResult(Subreddit sub) {
+
+                if (sub == null)
+                    sub = new Subreddit(subreddit);
+
+                final long timeSinceLastScrape = System.currentTimeMillis() - sub.getLastScrape();
+                final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
+
+                Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
+
+                if (doScrape)
+                    doScrape(sub);
+
+            }
+        });
+
+    }
+    private void doScrape(final Subreddit subreddit) {
+
+        final String url = String.format("http://imgur.com/r/%s.json", subreddit.getSubreddit());
 
         final GsonRequest<ImgurImageList> request = new GsonRequest<ImgurImageList>(
                 ImgurImageList.class,
@@ -144,10 +171,14 @@ public class ScrapeService extends IntentService {
                                 session.add(img);
                             }
 
+                            subreddit.touch();
+                            session.add(subreddit);
+
                             session.commit();
                         }
 
-                        onScrapeComplete(response.data.size());
+                        onScrapeComplete(subreddit, response.data.size());
+
                     }
                 },
                 new Response.ErrorListener() {

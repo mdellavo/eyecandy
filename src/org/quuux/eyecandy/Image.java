@@ -17,12 +17,6 @@ import java.security.MessageDigest;
 @Table(name="images")
 public class Image implements Entity, Serializable {
 
-
-
-    public long getId() {
-        return id;
-    }
-
     public enum Source {
         REDDIT,
         IMGUR
@@ -97,18 +91,24 @@ public class Image implements Entity, Serializable {
     public String toString() {
         return "Image(" + url + ")";
     }
-    
+
+    public long getId() {
+        return id;
+    }
+
     public Source getSource() {
         return source;
     }
 
     public String getUrl() {
-        return url;
+        return url.replace("http://imgur.com", "http://i.imgur.com");
     }
 
     public String getThumbnailUrl() {
 
-        if (url.startsWith("http://imgur.com"))
+        final String url = getUrl();
+
+        if (url.startsWith("http://i.imgur.com"))
             return url.replace(".jpg", "t.jpg");
 
         return url;

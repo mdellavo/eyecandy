@@ -6,7 +6,7 @@ import org.quuux.orm.Database;
 public class EyeCandyDatabase extends Database {
 
     private static final String NAME = "eyecandy.db";
-    private static final int VERSION = 2;
+    private static final int VERSION = 4;
 
     private static EyeCandyDatabase instance = null;
 

@@ -1,11 +1,16 @@
 package org.quuux.eyecandy;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Movie;
 import android.graphics.Point;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
@@ -14,6 +19,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -53,19 +59,43 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+
+        final Context context = getActivity();
+        if (context != null) {
+            final IntentFilter filter = new IntentFilter();
+            filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+            context.registerReceiver(mBroadcastReceiver, filter);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        final Context context = getActivity();
+        if (context != null) {
+            context.unregisterReceiver(mBroadcastReceiver);
+        }
+    }
+
+    @Override
     public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
 
-        Display display = getActivity().getWindowManager().getDefaultDisplay();
+        final View rv = inflater.inflate(R.layout.viewer, container, false);
+
+        final Display display = getActivity().getWindowManager().getDefaultDisplay();
         int width = display.getWidth();
         int height = display.getHeight();
 
-        mPager = new ViewPager(getActivity());
+        mPager = (ViewPager) rv.findViewById(R.id.pager);
         mPager.setPageTransformer(true, this);
 
         final Database db = EyeCandyDatabase.getInstance(getActivity());
         final Session session = db.createSession();
 
-        Query q = session.query(Image.class).filter("animated=?", 1);
+        Query q = session.query(Image.class);
 
         mAdapter = new Adapter(getActivity(), q, new Point(width, height));
 
@@ -87,7 +117,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             mPager.setAdapter(mAdapter);
         }
 
-        return mPager;
+        return rv;
     }
 
     @Override
@@ -127,6 +157,13 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     public static class Adapter extends PagerAdapter {
+
+        static class Holder {
+            Target target;
+            ImageView image;
+            ImageView backing;
+            ImageView spinner;
+        }
 
         private final Query mQuery;
         private final Point mSize;
@@ -179,90 +216,123 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             if (context == null)
                 return null;
 
-            final ImageView rv = new ImageView(context);
-            rv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            final ViewPager.LayoutParams params = new ViewPager.LayoutParams();
-            params.height = ViewPager.LayoutParams.MATCH_PARENT;
-            params.width = ViewPager.LayoutParams.MATCH_PARENT;
-            rv.setLayoutParams(params);
+            final LayoutInflater inflater =
+                    (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+            final View rv = inflater.inflate(R.layout.viewer_page, null);
 
             container.addView(rv);
+
+            final Holder holder = new Holder();
+            holder.backing = (ImageView) rv.findViewById(R.id.backing);
+            holder.image = (ImageView) rv.findViewById(R.id.image);
+            holder.spinner = (ImageView) rv.findViewById(R.id.spinner);
+
+            rv.setTag(holder);
 
             loadItem(position, new FetchListener<Image>() {
                 @Override
                 public void onResult(final Image image) {
+
+                    if (image == null)
+                        return;
+
                     Log.d(TAG, "item @ pos %s = %s", position, image);
                     if (image.isAnimated()) {
-                        loadMovie(rv, image);
+                        loadMovie(holder, image);
                     } else {
-                        loadImage(rv, image);
+                        loadImage(holder, image);
                     }
                 }
             });
-
-            //loadItem(position + 1, new FetchListener<Image>() {
-            //
-            //
-            //   @Override
-            //    public void on˚Result(final Image next) {
-            //        Log.d(TAG, "prefetching item @ pos = %s - %s", position + 1, next);
-            //        mPicasso.load(next.getUrl()).fetch();
-            //    }
-            //});
 
             return rv;
         }
 
 
-        private void loadImage(final ImageView v, final Image image) {
-            Log.d(TAG, "loading image %s", image.getUrl());
-            mPicasso.load(image.getUrl()).resize(mSize.x, mSize.y).noFade().skipMemoryCache().centerCrop().into(v, new Callback() {
-                @Override
-                public void onSuccess() {
-                    Log.d(TAG, "loaded image");
-                }  @Override
-                public void onError() {
-                    Log.d(TAG, "error loading image!");
-                }
-            });
+        private void send(final Context context, final Request<?> r) {
+            final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(context);
+            requestQueue.add(r);
         }
 
+        private void loadImage(final Holder holder, final Image image) {
+            Log.d(TAG, "loading image %s", image.getUrl());
 
-        private void loadMovie(final ImageView view, final Image image) {
+            final Context context = mContext.get();
+            if (context == null)
+                return;
 
+            final ImageRequest request = new ImageRequest(image.getUrl(), new Response.Listener<Bitmap>() {
+                @Override
+                public void onResponse(final Bitmap bitmap) {
+                    Log.d(TAG, "got image reponse %s - %s (%s x %s) ",
+                            image, bitmap, bitmap.getWidth(), bitmap.getHeight());
+                    holder.image.setImageBitmap(bitmap);
+                    onImageLoaded(holder);
+                }
+            }, mSize.x, mSize.y, Bitmap.Config.ARGB_8888, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(final VolleyError error) {
+                    Log.e(TAG, "error loading image %s", error, image);
+                }
+            });
+
+
+            send(context, request);
+        }
+
+        private void loadMovie(final Holder holder, final Image image) {
+            final long t1 = SystemClock.uptimeMillis();
             Log.d(TAG, "loading movie %s", image.getUrl());
             final Context context = mContext.get();
-            if (context != null) {
-                final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(context);
-                requestQueue.add(new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
-                    @Override
-                    public void onResponse(final Movie movie) {
-                        Log.d(TAG, "loaded movie - %s", image);
-                        final Context context = mContext.get();
-                        if (context != null) {
-                            final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie);
-                            view.setBackground(drawable);
-                            drawable.setVisible(true, true);
+            if (context == null)
+                return;
 
-                            Log.d(TAG, "movie is %s x %s @ %s ms", movie.width(), movie.height(), movie.duration());
+            final MovieRequest request = new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
+                @Override
+                public void onResponse(final Movie movie) {
 
-                        }
+                    if (movie == null || movie.width() == 0 || movie.height() == 0 || movie.duration() == 0) {
+                        Log.d(TAG, "error loading movie %s", image);
+                        return;
                     }
-                }, new Response.ErrorListener() {
 
-                    @Override
-                    public void onErrorResponse(final VolleyError error) {
-                        Log.e(TAG, "error loading movie - " + image, error);
+                    final Context context = mContext.get();
+                    if (context != null) {
+                        final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie, null);
+                        holder.image.setImageDrawable(drawable);
+                        drawable.setVisible(true, true);
+
+
                     }
-                }));
-            }
+
+                    final long t2 = SystemClock.uptimeMillis();
+                    Log.d(TAG, "loaded movie - %s (%s x %s @ %s ms) in %d ms", image, movie.width(), movie.height(), movie.duration(), t2-t1);
+
+                    onImageLoaded(holder);
+
+                }
+            }, new Response.ErrorListener() {
+
+                @Override
+                public void onErrorResponse(final VolleyError error) {
+                    Log.e(TAG, "error loading movie - " + image, error);
+                }
+            });
+
+            send(context, request);
         }
 
         @Override
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
-            container.removeView((ImageView)object);
+            container.removeView((View)object);
             // FIXME recycle drawable
         }
+
+       private void onImageLoaded(final Holder  holder) {
+           holder.image.setVisibility(View.VISIBLE);
+           holder.spinner.setVisibility(View.GONE);
+       }
 
         private void loadItem(final int position, final FetchListener<Image> listener) {
 
@@ -281,6 +351,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     listener.onResult(result);
                 }
             });
+
         }
 
 
@@ -288,5 +359,19 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             mOffset = offset;
         }
     }
+
+
+    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+
+            final String action = intent.getAction();
+            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                mAdapter.notifyDataSetChanged();
+            }
+
+        }
+    };
 
 }

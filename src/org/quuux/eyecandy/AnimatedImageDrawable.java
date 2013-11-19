@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Movie;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
@@ -12,7 +14,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.SystemClock;
 
-
+// FIXME should probably cap max bitmap size for hw surface, see EyeCandyView
 public class AnimatedImageDrawable extends Drawable implements Drawable.Callback, Runnable, Animatable {
 
     private static final String TAG = Log.buildTag(AnimatedImageDrawable.class);
@@ -20,17 +22,19 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
     private final Bitmap mBitmap;
     private final Movie mMovie;
     private final Canvas mCanvas;
+    private final Rect mDest;
     private boolean mRunning;
     private long mStartTime;
 
     private final Handler mHandler;
 
-    public AnimatedImageDrawable(final Context context, final Movie movie) {
+    public AnimatedImageDrawable(final Context context, final Movie movie, final Rect dest) {
         super();
 
-        mHandler = new Handler(context.getMainLooper());
-
         mMovie = movie;
+        mDest = dest;
+
+        mHandler = new Handler(context.getMainLooper());
 
         mBitmap = Bitmap.createBitmap(mMovie.width(), mMovie.height(),
                 Bitmap.Config.ARGB_8888);
@@ -73,7 +77,7 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
 
     @Override
     public int getOpacity() {
-        return 0;
+        return PixelFormat.OPAQUE;
     }
 
 

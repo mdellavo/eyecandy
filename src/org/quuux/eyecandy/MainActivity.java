@@ -1,7 +1,10 @@
 package org.quuux.eyecandy;
 
 import android.app.ActionBar;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.Fragment;
@@ -10,6 +13,8 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.view.*;
 import android.widget.ArrayAdapter;
+import android.widget.Toast;
+
 import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.Database;
 
@@ -18,9 +23,6 @@ public class MainActivity
         implements ActionBar.OnNavigationListener, 
                    GalleryFragment.Listener {
 
-    static {
-        Database.attach(Image.class);
-    }
 
     private static final String TAG = "MainActivity";
     private static final String FRAG_RANDOM = "random";
@@ -51,7 +53,7 @@ public class MainActivity
         v.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
 
         final Intent intent = new Intent(this, ScrapeService.class);
-        //startService(intent);
+        startService(intent);
 
         ViewServer.get(this).addWindow(this);
 
@@ -67,6 +69,17 @@ public class MainActivity
     protected void onResume() {
         super.onResume();
         ViewServer.get(this).setFocusedWindow(this);
+
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+        registerReceiver(mBroadcastReceiver, filter);
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -181,4 +194,23 @@ public class MainActivity
             dismiss();
         }
     };
+
+
+    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(final Context context, final Intent intent) {
+
+            final String action = intent.getAction();
+
+            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(ScrapeService.EXTRA_SUBREDDIT);
+                final int numScraped = intent.getIntExtra(ScrapeService.EXTRA_NUM_SCRAPED, 0);
+                final String msg = String.format("scraped %s, found %d images", subreddit.getSubreddit(), numScraped);
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+            }
+
+        }
+    };
+
 }
