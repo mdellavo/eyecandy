@@ -77,10 +77,7 @@ public class MainActivity
 
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
         getWindow().addFlags(
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_FULLSCREEN |
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN |
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
 
         final ActionBar actionBar = getSupportActionBar();
@@ -199,7 +196,6 @@ public class MainActivity
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setSystemUiVisibility(
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
                             View.SYSTEM_UI_FLAG_LOW_PROFILE |
                             View.SYSTEM_UI_FLAG_FULLSCREEN |
                             View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN

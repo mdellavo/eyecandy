@@ -59,7 +59,7 @@ import java.util.Map;
 public class ViewerFragment extends Fragment implements ViewPager.PageTransformer, ViewPager.OnPageChangeListener {
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
-    private static final long FLIP_DELAY = 30 * 1000;
+    private static final long FLIP_DELAY = 15 * 1000;
     private Adapter mAdapter;
     private ViewPager mPager;
     private boolean mFlipping;
@@ -142,8 +142,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onResume() {
         super.onResume();
 
-        //startFlipping();
-
         final Context context = getActivity();
         if (context != null) {
             final IntentFilter filter = new IntentFilter();
@@ -155,8 +153,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void onPause() {
         super.onPause();
-
-        //stopFlipping();
 
         final Context context = getActivity();
         if (context != null) {

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:eyecandy="http://schemas.android.com/apk/res-auto">
     <item
         android:showAsAction="always"
-        android:title="@string/add_subreddit"
+        eyecandy:showAsAction="always"
+        android:icon="@drawable/ic_action_content_new"
         android:id="@+id/add"
         />
 </menu>
