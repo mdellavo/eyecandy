@@ -1,9 +1,5 @@
 package org.quuux.eyecandy;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.AnimatorSet;
-import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -25,6 +21,11 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.nineoldandroids.animation.Animator;
+import com.nineoldandroids.animation.AnimatorListenerAdapter;
+import com.nineoldandroids.animation.AnimatorSet;
+import com.nineoldandroids.animation.ObjectAnimator;
+import com.nineoldandroids.view.ViewHelper;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
@@ -85,11 +86,23 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         mShortAnimationDuration = getResources().getInteger(android.R.integer.config_shortAnimTime);
 
-        final Database db = EyeCandyDatabase.getInstance(context);
-        final Session session = db.createSession();
-        mQuery = session.query(Image.class).orderBy("id DESC");
-        mThumbnailsAdapter = new ThumbnailAdapter(context, mQuery);
+        final Session session = EyeCandyDatabase.getSession(context);
 
+        final Bundle args = getArguments();
+        if (savedInstanceState != null && savedInstanceState.containsKey("query"))
+            mQuery = session.bind((Query) savedInstanceState.getSerializable("query"));
+        else if (args != null && args.containsKey("query"))
+            mQuery = session.bind((Query) args.getSerializable("query"));
+        else
+            mQuery = session.query(Image.class).orderBy("id DESC");
+
+        mThumbnailsAdapter = new ThumbnailAdapter(context, mQuery);
+    }
+
+    @Override
+    public void onSaveInstanceState(final Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putSerializable("query", mQuery);
     }
 
     @Override
@@ -106,15 +119,9 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         mZoomedImage = (ImageView)rv.findViewById(R.id.zoomed_image);
 
         mTitle = (TextView)rv.findViewById(R.id.title);
-        mTitle.setAlpha(0);
+        ViewHelper.setAlpha(mTitle, 0);
 
         mScrim = rv.findViewById(R.id.scrim);
-
-        return rv;
-    }
-
-    public static GalleryFragment newInstance() {
-        final GalleryFragment rv = new GalleryFragment();
 
         return rv;
     }
@@ -174,10 +181,23 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         mThumbnailsAdapter.onScroll(absListView, i, i2, i3);
     }
 
+    public static GalleryFragment newInstance(final Query query) {
+        final GalleryFragment rv = new GalleryFragment();
+        final Bundle args = new Bundle();
+        if (query != null)
+            args.putSerializable("query", query);
+        rv.setArguments(args);
+        return rv;
+    }
+
+    public static GalleryFragment newInstance() {
+        return newInstance(null);
+    }
+
     private AnimatorSet fade(final View v, final float start, final float end) {
         final AnimatorSet s = new AnimatorSet();
 
-        s.play(ObjectAnimator.ofFloat(v, View.ALPHA, start, end));
+        s.play(ObjectAnimator.ofFloat(v, "alpha", start, end));
         s.setDuration(mShortAnimationDuration);
         s.setInterpolator(new DecelerateInterpolator());
 
@@ -248,15 +268,14 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
             startBounds.bottom += deltaHeight;
         }
 
-
-        thumbView.setAlpha(0f);
+        ViewHelper.setAlpha(thumbView, 0f);
 
         mZoomedImage.setTag(tag);
 
         mZoomedImage.setVisibility(View.VISIBLE);
 
-        mZoomedImage.setPivotX(0f);
-        mZoomedImage.setPivotY(0f);
+        ViewHelper.setPivotX(mZoomedImage, 0);
+        ViewHelper.setPivotY(mZoomedImage, 0);
 
         final int finalWidth = finalBounds.width();
         final int finalHeight = finalBounds.height();
@@ -269,14 +288,14 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         AnimatorSet set = new AnimatorSet();
         set
-                .play(ObjectAnimator.ofFloat(mZoomedImage, View.X,
+                .play(ObjectAnimator.ofFloat(mZoomedImage, "x",
                         startBounds.left, finalBounds.left))
-                .with(ObjectAnimator.ofFloat(mZoomedImage, View.Y,
+                .with(ObjectAnimator.ofFloat(mZoomedImage, "y",
                         startBounds.top, finalBounds.top))
-                .with(ObjectAnimator.ofFloat(mZoomedImage, View.SCALE_X,
+                .with(ObjectAnimator.ofFloat(mZoomedImage, "scaleX",
                         startScale, 1f))
                 .with(ObjectAnimator.ofFloat(mZoomedImage,
-                        View.SCALE_Y, startScale, 1f));
+                        "scaleY", startScale, 1f));
         set.setDuration(mShortAnimationDuration);
         set.setInterpolator(new DecelerateInterpolator());
         set.addListener(new AnimatorListenerAdapter() {
@@ -306,16 +325,16 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
                 AnimatorSet set = new AnimatorSet();
                 set.play(ObjectAnimator
-                        .ofFloat(mZoomedImage, View.X, startBounds.left))
+                        .ofFloat(mZoomedImage, "x", startBounds.left))
                         .with(ObjectAnimator
                                 .ofFloat(mZoomedImage,
-                                        View.Y, startBounds.top))
+                                        "y", startBounds.top))
                         .with(ObjectAnimator
                                 .ofFloat(mZoomedImage,
-                                        View.SCALE_X, startScaleFinal))
+                                        "scaleX", startScaleFinal))
                         .with(ObjectAnimator
                                 .ofFloat(mZoomedImage,
-                                        View.SCALE_Y, startScaleFinal));
+                                        "scaleY", startScaleFinal));
                 set.setDuration(mShortAnimationDuration);
                 set.setInterpolator(new DecelerateInterpolator());
                 set.addListener(new AnimatorListenerAdapter() {
@@ -345,12 +364,12 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
     private void startZoom(final View v) {
         mZoomed = true;
-        getActivity().invalidateOptionsMenu();
+        getActivity().supportInvalidateOptionsMenu();
     }
 
     private void endZoom(final View v) {
-        getActivity().invalidateOptionsMenu();
-        v.setAlpha(1f);
+        getActivity().supportInvalidateOptionsMenu();
+        ViewHelper.setAlpha(v, 1);
         mZoomedImage.setVisibility(View.GONE);
         mCurrentAnimator = null;
         mZoomed = false;

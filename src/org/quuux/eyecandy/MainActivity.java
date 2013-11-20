@@ -71,7 +71,7 @@ public class MainActivity
             @Override
             public boolean onSingleTapUp(final MotionEvent e) {
                 summon();
-                return true;
+                return false;
             }
 
             @Override
@@ -232,12 +232,6 @@ public class MainActivity
         swapFrag(frag, FRAG_RANDOM);
     }
 
-    private void onShowGallery() {
-        Fragment frag = getFrag(FRAG_GALLERY);
-        if (frag == null)
-            frag = GalleryFragment.newInstance();
-        swapFrag(frag, FRAG_GALLERY);
-    }
 
     public void showImage(final Query query, final int position) {
         Fragment frag = getFrag(FRAG_VIEWER);
@@ -251,10 +245,19 @@ public class MainActivity
     }
 
     private void onShowImage() {
-
-        final EyeCandyDatabase db = EyeCandyDatabase.getInstance(this);
-        final Query q = db.createSession().query(Image.class).orderBy("timesShown, RANDOM()");
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("timesShown, RANDOM()");
         showImage(q);
+    }
+
+    public void showGallery(final Query query) {
+        Fragment frag = getFrag(FRAG_GALLERY);
+        if (frag == null)
+            frag = GalleryFragment.newInstance(query);
+        swapFrag(frag, FRAG_GALLERY);
+    }
+
+    private void onShowGallery() {
+        showGallery(null);
     }
 
     private void onShowSources() {

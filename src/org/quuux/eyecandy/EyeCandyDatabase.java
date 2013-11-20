@@ -125,14 +125,16 @@ public class EyeCandyDatabase extends Database {
 
     public static EyeCandyDatabase getInstance(final Context context) {
 
-        final boolean doInit;
-
         if (instance == null) {
             instance = new EyeCandyDatabase(context.getApplicationContext(), NAME, VERSION);
             initSources(context, instance);
         }
 
         return instance;
+    }
+
+    public static Session getSession(final Context context) {
+        return getInstance(context).createSession();
     }
 
 }

@@ -9,6 +9,7 @@ import android.graphics.Movie;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.support.v4.app.Fragment;
@@ -16,16 +17,19 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.Display;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageRequest;
+import com.nineoldandroids.animation.Animator;
 import com.nineoldandroids.view.ViewHelper;
 import com.nineoldandroids.view.ViewPropertyAnimator;
 import com.squareup.picasso.Callback;
@@ -46,7 +50,7 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ViewerFragment extends Fragment implements ViewPager.PageTransformer {
+public class ViewerFragment extends Fragment implements ViewPager.PageTransformer, ViewPager.OnPageChangeListener {
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
     private Adapter mAdapter;
@@ -98,7 +102,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         mPager.setPageTransformer(true, this);
 
         mPager.setAdapter(mAdapter);
-
+        mPager.setOnPageChangeListener(this);
         return rv;
     }
 
@@ -189,15 +193,98 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
     }
 
+    @Override
+    public void onPageScrolled(final int i, final float v, final int i2) {
+
+    }
+
+    @Override
+    public void onPageSelected(final int i) {
+        Log.d(TAG, "page selected %d", i);
+        final View v = mPager.findViewWithTag(i);
+        final Adapter.Holder holder = (Adapter.Holder) v.getTag(R.id.holder);
+        if (holder != null && !holder.visible)
+            holder.summon();
+    }
+
+    @Override
+    public void onPageScrollStateChanged(final int i) {
+
+    }
+
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
+            boolean visible;
+
             Bitmap backingBitmap;
             Bitmap bitmap;
             AnimatedImageDrawable movie;
             ImageView image;
             ImageView backing;
             ImageView spinner;
+            TextView title;
+
+            private Runnable mDismissCallback = new Runnable() {
+                @Override
+                public void run() {
+                    dismiss();
+                }
+            };
+
+            void summon() {
+                title.setVisibility(View.VISIBLE);
+                ViewHelper.setAlpha(title, 0);
+                ViewPropertyAnimator.animate(title).setDuration(250).alpha(1).setListener(new Animator.AnimatorListener() {
+                    @Override
+                    public void onAnimationStart(final Animator animation) {
+                        visible = true;
+                    }
+
+                    @Override
+                    public void onAnimationEnd(final Animator animation) {
+                        title.removeCallbacks(mDismissCallback);
+                        title.postDelayed(mDismissCallback, 3000);
+                    }
+
+                    @Override
+                    public void onAnimationCancel(final Animator animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(final Animator animation) {
+
+                    }
+                });
+            }
+
+            void dismiss() {
+                ViewHelper.setAlpha(title, 1);
+                ViewPropertyAnimator.animate(title).setDuration(1000).alpha(0).setListener(new Animator.AnimatorListener() {
+                    @Override
+                    public void onAnimationStart(final Animator animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationEnd(final Animator animation) {
+                        title.setVisibility(View.GONE);
+                        visible = false;
+                    }
+
+                    @Override
+                    public void onAnimationCancel(final Animator animation) {
+
+                    }
+
+                    @Override
+                    public void onAnimationRepeat(final Animator animation) {
+
+                    }
+                });
+            }
+
         }
 
         private final Query mQuery;
@@ -271,8 +358,25 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             holder.backing = (ImageView) rv.findViewById(R.id.backing);
             holder.image = (ImageView) rv.findViewById(R.id.image);
             holder.spinner = (ImageView) rv.findViewById(R.id.spinner);
+            holder.title = (TextView)rv.findViewById(R.id.title);
 
-            rv.setTag(holder);
+            rv.setTag(position);
+            rv.setTag(R.id.holder, holder);
+
+
+            rv.setOnTouchListener(new View.OnTouchListener() {
+
+                @Override
+                public boolean onTouch(final View v, final MotionEvent event) {
+                    final Holder holder = (Holder) v.getTag(R.id.holder);
+
+                    if (holder != null && !holder.visible && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        holder.summon();
+                    }
+
+                    return false;
+                }
+            });
 
             loadItem(position, new FetchListener<Image>() {
                 @Override
@@ -280,6 +384,26 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
                     if (image == null)
                         return;
+
+                    rv.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(final View v) {
+
+                            final Holder holder = (Holder) v.getTag(R.id.holder);
+                            if (holder != null) {
+                                Uri uri = Uri.parse(image.getUrl());
+                                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                                Intent intentChooser = Intent.createChooser(intent, "Open Image");
+                                context.startActivity(intentChooser);
+                                return true;
+                            }
+
+                            return false;
+                        }
+                    });
+
+                    holder.title.setText(image.getTitle());
+                    holder.summon();
 
                     Log.d(TAG, "item @ pos %s = %s", position, image);
                     if (image.isAnimated()) {
@@ -382,7 +506,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         @Override
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
             final View view = (View)object;
-            final Holder holder = (Holder) view.getTag();
+            final Holder holder = (Holder) view.getTag(R.id.holder);
 
             if (holder.bitmap != null) {
                 Log.d(TAG, "recycling bitmap");

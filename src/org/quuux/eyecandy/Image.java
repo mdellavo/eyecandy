@@ -13,6 +13,7 @@ import org.quuux.orm.Table;
 
 import java.io.Serializable;
 import java.security.MessageDigest;
+import java.util.regex.Pattern;
 
 @Table(name="images")
 public class Image implements Entity, Serializable {
@@ -114,7 +115,7 @@ public class Image implements Entity, Serializable {
     }
 
     public String getTitle() {
-        return title;
+        return title.replaceAll("\\[[^\\]]+\\]", "");
     }
 
     public Status getStatus() {

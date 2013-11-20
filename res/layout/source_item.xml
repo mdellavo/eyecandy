@@ -18,11 +18,10 @@
         android:textSize="24sp"
         android:textColor="#fff"
         android:gravity="center"
-        android:shadowColor="#eee"
-        android:shadowRadius="25"
+        android:shadowColor="#333"
+        android:shadowRadius="10"
         android:background="#88000000"
-        android:padding="5dp"
-        android:layout_centerHorizontal="true"
-        android:layout_alignParentBottom="true"/>
+        android:padding="15dp"
+        android:layout_centerInParent="true"/>
 
 </RelativeLayout>

@@ -26,6 +26,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
     public interface Listener {
         void showImage(Query query);
+        void showGallery(Query query);
     }
 
     private Listener mListener;
@@ -83,7 +84,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         final Subreddit subreddit = (Subreddit) mAdapter.getItem(position);
         final Session session = EyeCandyDatabase.getInstance(getActivity()).createSession();
         final Query query = session.query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
-        mListener.showImage(query);
+        mListener.showGallery(query);
     }
 
     static class Adapter extends QueryAdapter<Subreddit> {

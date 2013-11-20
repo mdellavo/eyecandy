@@ -28,4 +28,22 @@
         android:layout_centerInParent="true"
         android:src="@drawable/ic_loading"/>
 
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:textSize="24sp"
+        android:textColor="#fff"
+        android:gravity="center"
+        android:shadowColor="#333"
+        android:shadowRadius="10"
+        android:background="#88000000"
+        android:padding="25dp"
+        android:visibility="gone"
+        android:layout_marginBottom="20dp"
+        />
+
+
 </RelativeLayout>
