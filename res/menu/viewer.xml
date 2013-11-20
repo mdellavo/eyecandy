@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:eyecandy="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/play"
+        android:visible="false"
+        android:showAsAction="always"
+        eyecandy:showAsAction="always"
+        android:icon="@drawable/ic_action_av_play"
+        />
+
+    <item
+        android:id="@+id/pause"
+        android:visible="false"
+        android:showAsAction="always"
+        eyecandy:showAsAction="always"
+        android:icon="@drawable/ic_action_av_pause"
+        />
+
+</menu>

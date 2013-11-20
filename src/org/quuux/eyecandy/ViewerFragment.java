@@ -1,5 +1,6 @@
 package org.quuux.eyecandy;
 
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -14,10 +15,14 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.Display;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -57,7 +62,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     private static final long FLIP_DELAY = 30 * 1000;
     private Adapter mAdapter;
     private ViewPager mPager;
-    private boolean mLoading;
+    private boolean mFlipping;
 
     private Handler mHandler = new Handler();
 
@@ -77,6 +82,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        setHasOptionsMenu(true);
 
         final Display display = getActivity().getWindowManager().getDefaultDisplay();
         int width = display.getWidth();
@@ -164,6 +171,41 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         outState.putInt("position", mPager.getCurrentItem());
     }
 
+    private void setMenuVisible(final Menu menu, final int id, final boolean visible) {
+        final MenuItem item = menu.findItem(id);
+        if (item != null)
+            item.setVisible(visible);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(final Menu menu, final MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.viewer, menu);
+        setMenuVisible(menu, R.id.play, !mFlipping);
+        setMenuVisible(menu, R.id.pause, mFlipping);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(final MenuItem item) {
+
+        final boolean rv;
+
+        switch (item.getItemId()) {
+
+            case R.id.play:
+            case R.id.pause:
+                toggleFlipping();
+                rv = true;
+                break;
+
+            default:
+                rv = super.onOptionsItemSelected(item);
+                break;
+        }
+
+        return rv;
+    }
+
     @Override
     public void transformPage(final View view, final float position) {
         int pageWidth = view.getWidth();
@@ -210,6 +252,10 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onPageSelected(final int i) {
         Log.d(TAG, "page selected %d", i);
         final View v = mPager.findViewWithTag(i);
+
+        if (v == null)
+            return;
+
         final Adapter.Holder holder = (Adapter.Holder) v.getTag(R.id.holder);
         if (holder != null && !holder.visible)
             holder.summon();
@@ -219,7 +265,19 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onPageScrollStateChanged(final int i) {
 
     }
-    
+
+    private void toggleFlipping() {
+        mFlipping = !mFlipping;
+        if (mFlipping)
+            startFlipping();
+        else
+            stopFlipping();
+
+        final FragmentActivity activity = getActivity();
+        if (activity != null)
+            activity.supportInvalidateOptionsMenu();
+    }
+
     private void startFlipping() {
         mHandler.removeCallbacks(mFlipCallback);
         mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
@@ -263,12 +321,10 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             };
 
             void summon() {
-                title.setVisibility(View.VISIBLE);
                 ViewHelper.setAlpha(title, 0);
                 ViewPropertyAnimator.animate(title).setDuration(250).alpha(1).setListener(new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationStart(final Animator animation) {
-                        visible = true;
                     }
 
                     @Override
@@ -299,8 +355,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
                     @Override
                     public void onAnimationEnd(final Animator animation) {
-                        title.setVisibility(View.GONE);
-                        visible = false;
                     }
 
                     @Override
@@ -393,9 +447,11 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
                 @Override
                 public boolean onTouch(final View v, final MotionEvent event) {
+
                     final Holder holder = (Holder) v.getTag(R.id.holder);
 
-                    if (holder != null && !holder.visible && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    if (holder != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+
                         holder.summon();
                     }
 
@@ -428,6 +484,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     });
 
                     holder.title.setText(image.getTitle());
+                    holder.title.setVisibility(View.VISIBLE);
                     holder.summon();
 
                     Log.d(TAG, "item @ pos %s = %s", position, image);

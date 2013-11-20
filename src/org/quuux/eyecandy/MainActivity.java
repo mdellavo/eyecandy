@@ -36,6 +36,39 @@ public class MainActivity
     final private Handler mHandler = new Handler();
 
     GestureDetector mGestureDetector;
+    GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
+        @Override
+        public boolean onDown(final MotionEvent e) {
+            return false;
+        }
+
+        @Override
+        public void onShowPress(final MotionEvent e) {
+
+        }
+
+        @Override
+        public boolean onSingleTapUp(final MotionEvent e) {
+            supportInvalidateOptionsMenu();
+            summon();
+            return false;
+        }
+
+        @Override
+        public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
+            return false;
+        }
+
+        @Override
+        public void onLongPress(final MotionEvent e) {
+
+        }
+
+        @Override
+        public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
+            return false;
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -57,43 +90,11 @@ public class MainActivity
         final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.modes, android.R.layout.simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
-        mGestureDetector = new GestureDetector(this, new GestureDetector.OnGestureListener() {
-            @Override
-            public boolean onDown(final MotionEvent e) {
-                return false;
-            }
-
-            @Override
-            public void onShowPress(final MotionEvent e) {
-
-            }
-
-            @Override
-            public boolean onSingleTapUp(final MotionEvent e) {
-                summon();
-                return false;
-            }
-
-            @Override
-            public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
-                return false;
-            }
-
-            @Override
-            public void onLongPress(final MotionEvent e) {
-
-            }
-
-            @Override
-            public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
-                return false;
-            }
-        });
+        mGestureDetector = new GestureDetector(this, mGestureListener);
 
         summon();
 
         setupSystemUi();
-        hideSystemUi();
 
         mHandler.postDelayed(new Runnable() {
             @Override
@@ -121,6 +122,8 @@ public class MainActivity
         final IntentFilter filter = new IntentFilter();
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         registerReceiver(mBroadcastReceiver, filter);
+
+        hideSystemUi();
 
     }
 
@@ -168,7 +171,6 @@ public class MainActivity
 
             case 3:
                 onShowSources();
-
                 break;
         }
 
@@ -198,10 +200,9 @@ public class MainActivity
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setSystemUiVisibility(
                             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LOW_PROFILE |
                             View.SYSTEM_UI_FLAG_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_IMMERSIVE
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             );
         }
 
@@ -211,13 +212,19 @@ public class MainActivity
         return getSupportFragmentManager().findFragmentById(android.R.id.content);
     }
 
-    private void swapFrag(final Fragment fragment, final String tag) {
+    private void swapFrag(final Fragment fragment, final String tag, final boolean addToBackStack) {
         final FragmentManager frags = getSupportFragmentManager();
         final FragmentTransaction ft = frags.beginTransaction();
         ft.setTransition(FragmentTransaction.TRANSIT_ENTER_MASK);
         //ft.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
         ft.replace(android.R.id.content, fragment, tag);
+        if (addToBackStack)
+            ft.addToBackStack(null);
         ft.commit();
+    }
+
+    private void swapFrag(final Fragment fragment, final String tag) {
+        swapFrag(fragment, tag, false);
     }
 
     private Fragment getFrag(final String tag) {
@@ -229,15 +236,19 @@ public class MainActivity
         Fragment frag = getFrag(FRAG_RANDOM);
         if (frag == null)
             frag = RandomFragment.newInstance();
-        swapFrag(frag, FRAG_RANDOM);
+        swapFrag(frag, FRAG_RANDOM, false);
     }
 
 
-    public void showImage(final Query query, final int position) {
+    public void showImage(final Query query, final int position, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_VIEWER);
         if (frag == null)
             frag = ViewerFragment.newInstance(query, position);
-        swapFrag(frag, FRAG_VIEWER);
+        swapFrag(frag, FRAG_VIEWER, addToBackStack);
+    }
+
+    public void showImage(final Query query, final int position) {
+        showImage(query, position, true);
     }
 
     public void showImage(final Query query) {
@@ -249,22 +260,26 @@ public class MainActivity
         showImage(q);
     }
 
-    public void showGallery(final Query query) {
+    public void showGallery(final Query query, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_GALLERY);
         if (frag == null)
             frag = GalleryFragment.newInstance(query);
-        swapFrag(frag, FRAG_GALLERY);
+        swapFrag(frag, FRAG_GALLERY, addToBackStack);
+    }
+
+    public void showGallery(final Query query) {
+        showGallery(query, true);
     }
 
     private void onShowGallery() {
-        showGallery(null);
+        showGallery(null, false);
     }
 
     private void onShowSources() {
         Fragment frag = getFrag(FRAG_SOURCES);
         if (frag == null)
             frag = SourcesFragment.newInstance();
-        swapFrag(frag, FRAG_SOURCES);
+        swapFrag(frag, FRAG_SOURCES, false);
     }
 
     private void dismiss() {
