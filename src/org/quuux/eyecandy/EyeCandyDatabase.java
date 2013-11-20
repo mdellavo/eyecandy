@@ -8,6 +8,7 @@ import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.QueryListener;
+import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
 
 import java.util.HashSet;
@@ -127,7 +128,15 @@ public class EyeCandyDatabase extends Database {
 
         if (instance == null) {
             instance = new EyeCandyDatabase(context.getApplicationContext(), NAME, VERSION);
-            initSources(context, instance);
+
+            final Session session = instance.createSession();
+            session.query(Subreddit.class).count(new ScalarListener<Long>() {
+                @Override
+                public void onResult(final Long count) {
+                    if (count == 0)
+                        initSources(context, instance);
+                }
+            });
         }
 
         return instance;

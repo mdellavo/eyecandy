@@ -455,10 +455,10 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
             final ImageView v = new ImageView(context);
             v.setImageResource(R.drawable.placeholder);
 
-            final int pix = (int)Utils.dp2pix(THUMB_SIZE, context);
-            v.setLayoutParams(new GridView.LayoutParams(pix, pix));
+            final int size = context.getResources().getDimensionPixelSize(R.dimen.source_thumbnail);
+
+            v.setLayoutParams(new GridView.LayoutParams(size, size));
             v.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            v.setPadding(8, 8, 8, 8);
 
             v.setTag(new Thumbnailholder());
 

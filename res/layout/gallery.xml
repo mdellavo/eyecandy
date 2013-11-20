@@ -19,12 +19,8 @@
         android:id="@+id/grid"
         android:columnWidth="@dimen/source_thumbnail"
         android:numColumns="auto_fit"
-        android:verticalSpacing="20dp"
-        android:horizontalSpacing="10dp"
-        android:stretchMode="columnWidth"
-        android:gravity="center"
-
-
+        android:verticalSpacing="5dp"
+        android:stretchMode="spacingWidthUniform"
         />
 
     <View
@@ -57,6 +53,8 @@
             android:textSize="24sp"
             android:shadowColor="#333"
             android:shadowRadius="10"
+            android:shadowDx="0"
+            android:shadowDy="0"
             android:id="@+id/title"/>
 
 

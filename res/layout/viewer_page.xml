@@ -21,12 +21,13 @@
         android:scaleType="fitCenter"
         android:visibility="gone"/>
 
-    <ImageView
+    <ProgressBar
         android:id="@+id/spinner"
         android:layout_height="wrap_content"
         android:layout_width="wrap_content"
         android:layout_centerInParent="true"
-        android:src="@drawable/ic_loading"/>
+        android:indeterminate="true"
+        />
 
     <TextView
         android:id="@+id/title"
@@ -37,8 +38,10 @@
         android:textSize="24sp"
         android:textColor="#fff"
         android:gravity="center"
-        android:shadowColor="#333"
-        android:shadowRadius="10"
+        android:shadowColor="@android:color/white"
+        android:shadowRadius="5"
+        android:shadowDx="0"
+        android:shadowDy="0"
         android:background="#88000000"
         android:padding="25dp"
         android:visibility="gone"

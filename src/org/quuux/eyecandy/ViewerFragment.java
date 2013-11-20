@@ -252,7 +252,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             AnimatedImageDrawable movie;
             ImageView image;
             ImageView backing;
-            ImageView spinner;
+            ProgressBar spinner;
             TextView title;
 
             private Runnable mDismissCallback = new Runnable() {
@@ -382,7 +382,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             final Holder holder = new Holder();
             holder.backing = (ImageView) rv.findViewById(R.id.backing);
             holder.image = (ImageView) rv.findViewById(R.id.image);
-            holder.spinner = (ImageView) rv.findViewById(R.id.spinner);
+            holder.spinner = (ProgressBar) rv.findViewById(R.id.spinner);
             holder.title = (TextView)rv.findViewById(R.id.title);
 
             rv.setTag(position);
