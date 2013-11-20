@@ -5,10 +5,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -21,6 +24,10 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.ImageRequest;
 import com.nineoldandroids.animation.Animator;
 import com.nineoldandroids.animation.AnimatorListenerAdapter;
 import com.nineoldandroids.animation.AnimatorSet;
@@ -29,7 +36,10 @@ import com.nineoldandroids.view.ViewHelper;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
+import org.quuux.eyecandy.utils.ImageUtils;
 import org.quuux.orm.Database;
+import org.quuux.orm.FetchListener;
+import org.quuux.orm.Func;
 import org.quuux.orm.Query;
 import org.quuux.orm.Session;
 import org.quuux.orm.util.QueryAdapter;
@@ -123,7 +133,60 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         mScrim = rv.findViewById(R.id.scrim);
 
+        final Session session = EyeCandyDatabase.getSession(getActivity());
+        mQuery.orderBy(Func.RANDOM).limit(1).first(new FetchListener<Image>() {
+            @Override
+            public void onResult(final Image image) {
+                setBackground((ImageView) rv.findViewById(R.id.backing), image);
+            }
+        });
+
+
         return rv;
+    }
+
+    // FIXME factor this out nicely and reuse , maybe base fragment
+    private void setBackground(final ImageView v, final Image image) {
+        final Activity act = getActivity();
+        if (act == null)
+            return;
+
+        final Display display = getActivity().getWindowManager().getDefaultDisplay();
+        int width = display.getWidth();
+        int height = display.getHeight();
+
+        final Response.Listener<Bitmap> listener = new Response.Listener<Bitmap>() {
+            @Override
+            public void onResponse(final Bitmap src) {
+                ImageUtils.blur(act, src, 25, new ImageUtils.Listener() {
+                    @Override
+                    public void complete(final Bitmap bitmap) {
+                        v.setImageBitmap(bitmap);
+                        ViewHelper.setAlpha(v, .4f);
+                    }
+                });
+            }
+        };
+
+        final Response.ErrorListener errorListener = new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(final VolleyError error) {
+                Log.e(TAG, "error loading image for backing - %s", error, image);
+            }
+        };
+
+        final ImageRequest request = new ImageRequest(
+                image.getUrl(),
+                listener,
+                width,
+                height,
+                Bitmap.Config.ARGB_8888,
+                errorListener
+        );
+
+        final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(act);
+        requestQueue.add(request);
+
     }
 
     @Override

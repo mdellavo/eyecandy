@@ -1,20 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
 
+    <ImageView
+        android:id="@+id/backing"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:scaleType="centerCrop"/>
+
+
     <GridView
         android:id="@+id/grid"
-        android:columnWidth="250dp"
+        android:columnWidth="@dimen/source_thumbnail"
         android:numColumns="auto_fit"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:verticalSpacing="25dp"
-        android:horizontalSpacing="25dp"
+        android:verticalSpacing="20dp"
+        android:horizontalSpacing="10dp"
         android:stretchMode="columnWidth"
         android:layout_gravity="center"
-        android:gravity="center"/>
+        android:gravity="center"
+        />
 
-</LinearLayout>
+</FrameLayout>

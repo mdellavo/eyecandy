@@ -11,6 +11,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.PagerAdapter;
@@ -53,9 +54,12 @@ import java.util.Map;
 public class ViewerFragment extends Fragment implements ViewPager.PageTransformer, ViewPager.OnPageChangeListener {
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
+    private static final long FLIP_DELAY = 30 * 1000;
     private Adapter mAdapter;
     private ViewPager mPager;
     private boolean mLoading;
+
+    private Handler mHandler = new Handler();
 
     public static ViewerFragment newInstance(final Query query, final int position) {
         final ViewerFragment rv = new ViewerFragment();
@@ -131,6 +135,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onResume() {
         super.onResume();
 
+        //startFlipping();
+
         final Context context = getActivity();
         if (context != null) {
             final IntentFilter filter = new IntentFilter();
@@ -142,6 +148,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void onPause() {
         super.onPause();
+
+        //stopFlipping();
 
         final Context context = getActivity();
         if (context != null) {
@@ -211,7 +219,29 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onPageScrollStateChanged(final int i) {
 
     }
+    
+    private void startFlipping() {
+        mHandler.removeCallbacks(mFlipCallback);
+        mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
+    }
+    
+    private void stopFlipping() {
+        mHandler.removeCallbacks(mFlipCallback);
+    }
 
+    private void flipImage() {
+        mPager.setCurrentItem(mPager.getCurrentItem() + 1, true);
+    }
+
+    private Runnable mFlipCallback = new Runnable() {
+        @Override
+        public void run() {
+            Log.d(TAG, "flip image");
+            flipImage();
+            mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
+        }
+    };
+    
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
@@ -313,11 +343,6 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 }
             });
 
-        }
-
-        @Override
-        public int getItemPosition(final Object object) {
-            return POSITION_NONE;
         }
 
         public Query getQuery() {
@@ -597,7 +622,10 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                mAdapter.notifyDataSetChanged();
+                if (mAdapter.getCount() == 0) {
+                    mAdapter.notifyDataSetChanged();
+                    mPager.setAdapter(mAdapter);
+                }
             }
 
         }

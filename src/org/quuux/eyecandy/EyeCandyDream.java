@@ -1,5 +1,6 @@
 package org.quuux.eyecandy;
 
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -9,13 +10,14 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import org.quuux.orm.Database;
 
+@TargetApi(17)
 public class EyeCandyDream extends DreamService {
 
     static {
         Database.attach(Image.class);
     }
 
-    private static final String TAG = "EyeCandyDream";
+    private static final String TAG = Log.buildTag(EyeCandyDream.class);
 
     private BurnsView mBurnsView;
     private ImageAdapter mAdapter;

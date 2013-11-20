@@ -5,15 +5,22 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <ImageView
+        android:id="@+id/backing"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:scaleType="centerCrop"/>
+
+
     <GridView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:id="@+id/grid"
-        android:columnWidth="90dp"
+        android:columnWidth="@dimen/source_thumbnail"
         android:numColumns="auto_fit"
         android:verticalSpacing="20dp"
-        android:horizontalSpacing="20dp"
+        android:horizontalSpacing="10dp"
         android:stretchMode="columnWidth"
         android:gravity="center"
 

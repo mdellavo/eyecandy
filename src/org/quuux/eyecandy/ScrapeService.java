@@ -30,7 +30,6 @@ public class ScrapeService extends IntentService {
     private RequestQueue mRequestQueue;
 
     private static int sTaskCount = 0;
-    private EyeCandyDatabase mDatabase;
 
     private static final Object sLock = new Object();
 
@@ -52,9 +51,7 @@ public class ScrapeService extends IntentService {
     }
 
     private void scrapeAllSubreddits() {
-        mDatabase = EyeCandyDatabase.getInstance(this);
-
-        final Session session = mDatabase.createSession();
+        final Session session = EyeCandyDatabase.getSession(this);
         session.query(Subreddit.class).all(new QueryListener<Subreddit>() {
             @Override
             public void onResult(final List<Subreddit> subreddits) {
@@ -111,10 +108,14 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onResponse(final ImgurImageList response) {
 
+                        if (response == null)
+                            return;
+
                         synchronized (sLock) {
-                            final Session session = mDatabase.createSession();
+                            final Session session = EyeCandyDatabase.getSession(ScrapeService.this);
 
                             for(final ImgurImage i : response.data) {
+
                                 final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
                                 session.add(img);
                             }
