@@ -29,6 +29,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -100,7 +101,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         final Database db = EyeCandyDatabase.getInstance(getActivity());
         final Session session = db.createSession();
-        mAdapter = new Adapter(getActivity(), session.bind(q), new Point(width, height));
+        mAdapter = new Adapter(this, session.bind(q), new Point(width, height));
 
     }
 
@@ -142,6 +143,9 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public void onResume() {
         super.onResume();
 
+        if (mFlipping)
+            startFlipping();
+
         final Context context = getActivity();
         if (context != null) {
             final IntentFilter filter = new IntentFilter();
@@ -153,6 +157,9 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void onPause() {
         super.onPause();
+
+        if (mFlipping)
+            stopFlipping();
 
         final Context context = getActivity();
         if (context != null) {
@@ -249,12 +256,19 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         Log.d(TAG, "page selected %d", i);
         final View v = mPager.findViewWithTag(i);
 
+
         if (v == null)
             return;
 
         final Adapter.Holder holder = (Adapter.Holder) v.getTag(R.id.holder);
-        if (holder != null && !holder.visible)
-            holder.summon();
+        if (holder == null)
+            return;
+
+        holder.summon();
+
+        if (mFlipping)
+            stopFlipping();
+
     }
 
     @Override
@@ -275,27 +289,42 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     private void startFlipping() {
+        Log.d(TAG, "scheduling flip");
         mHandler.removeCallbacks(mFlipCallback);
         mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
     }
     
     private void stopFlipping() {
+        Log.d(TAG, "stopping flip");
         mHandler.removeCallbacks(mFlipCallback);
     }
 
     private void flipImage() {
+        Log.d(TAG, "flip image");
         mPager.setCurrentItem(mPager.getCurrentItem() + 1, true);
     }
 
     private Runnable mFlipCallback = new Runnable() {
         @Override
         public void run() {
-            Log.d(TAG, "flip image");
             flipImage();
-            mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
         }
     };
-    
+
+    private void onImageLoaded() {
+        if (mFlipping)
+            startFlipping();
+    }
+
+    private void onImageError() {
+        final Context context = getActivity();
+        if (context == null)
+            return;
+
+        Toast.makeText(context, R.string.error_loading_image, Toast.LENGTH_LONG).show();
+        flipImage();
+    }
+
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
@@ -369,15 +398,17 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         private final Query mQuery;
         private final Point mSize;
-        private final WeakReference<Context> mContext;
+        private final WeakReference<ViewerFragment> mFrag;
         private final Picasso mPicasso;
         private long mOffset;
         private final Map<Integer, Image> mImages = new HashMap<Integer, Image>();
         private int mCount;
 
-        public Adapter(final Context context, final Query query, final Point size) {
+        public Adapter(final ViewerFragment frag, final Query query, final Point size) {
+            final Context context = frag.getActivity();
+
             mQuery = query;
-            mContext = new WeakReference<Context>(context);
+            mFrag = new WeakReference<ViewerFragment>(frag);
             mPicasso = EyeCandyPicasso.getInstance(context);
             mSize = size;
 
@@ -393,6 +424,22 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 }
             });
 
+        }
+
+        private ViewerFragment getFrag() {
+            return mFrag.get();
+        }
+
+        private Context getContext() {
+            final ViewerFragment frag = getFrag();
+            if (mFrag == null)
+                return null;
+
+            final Context context = frag.getActivity();
+            if (context == null)
+                return null;
+
+            return context;
         }
 
         public Query getQuery() {
@@ -418,7 +465,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             Log.d(TAG, "instantiateItem(position=%s)", position);
 
-            final Context context = mContext.get();
+            final Context context = getContext();
             if (context == null)
                 return null;
 
@@ -511,7 +558,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         private void loadImage(final Holder holder, final Image image) {
             Log.d(TAG, "loading image %s", image.getUrl());
 
-            final Context context = mContext.get();
+            final Context context = getContext();
             if (context == null)
                 return;
 
@@ -529,6 +576,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 @Override
                 public void onErrorResponse(final VolleyError error) {
                     Log.e(TAG, "error loading image %s", error, image);
+                    onImageError(error);
                 }
             });
 
@@ -539,7 +587,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         private void loadMovie(final Holder holder, final Image image) {
             final long t1 = SystemClock.uptimeMillis();
             Log.d(TAG, "loading movie %s", image.getUrl());
-            final Context context = mContext.get();
+            final Context context = getContext();
             if (context == null)
                 return;
 
@@ -547,7 +595,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 @Override
                 public void onResponse(final Movie movie) {
 
-                    final Context context = mContext.get();
+                    final Context context = getContext();
                     if (context == null)
                         return;
 
@@ -571,10 +619,10 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
                 }
             }, new Response.ErrorListener() {
-
                 @Override
                 public void onErrorResponse(final VolleyError error) {
                     Log.e(TAG, "error loading movie - " + image, error);
+                    onImageError(error);
                 }
             });
 
@@ -609,7 +657,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         private void setBacking(final Holder holder, final Bitmap bitmap) {
 
-            final Context context = mContext.get();
+            final Context context = getContext();
             if (context == null)
                 return;
 
@@ -639,6 +687,21 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             ViewPropertyAnimator.animate(holder.image).alpha(1).setDuration(250).start();
 
             holder.spinner.setVisibility(View.GONE);
+
+            final ViewerFragment frag = getFrag();
+            if (frag == null)
+                return;
+
+            frag.onImageLoaded();
+        }
+
+
+        private void onImageError(final VolleyError error) {
+            final ViewerFragment frag = getFrag();
+            if (frag == null)
+                return;
+
+            frag.onImageError();
         }
 
         private void loadItem(final int position, final FetchListener<Image> listener) {

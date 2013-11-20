@@ -89,8 +89,6 @@ public class MainActivity
 
         mGestureDetector = new GestureDetector(this, mGestureListener);
 
-        summon();
-
         setupSystemUi();
 
         mHandler.postDelayed(new Runnable() {
@@ -122,6 +120,10 @@ public class MainActivity
 
         hideSystemUi();
 
+        summon();
+
+
+
     }
 
     @Override
@@ -142,7 +144,6 @@ public class MainActivity
 
         super.onBackPressed();
     }
-
 
     @Override
     public boolean dispatchTouchEvent(final MotionEvent ev) {
