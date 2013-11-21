@@ -138,25 +138,34 @@ public class MainActivity
 
         switch (position) {
             case MODE_SLIDE_SHOW:
-                onShowImage();
+                if (!isFragCurrently(FRAG_VIEWER))
+                    onShowImage();
                 break;
 
             case MODE_BURNS:
-                onShowRandom();
+                if (!isFragCurrently(FRAG_RANDOM))
+                    onShowRandom();
                 break;
 
             case MODE_SOURCES:
-                onShowSources();
+                if (!isFragCurrently(FRAG_SOURCES))
+                    onShowSources();
                 break;
 
             case MODE_GALLERY:
-                onShowGallery();
+                if (!isFragCurrently(FRAG_GALLERY))
+                    onShowGallery();
                 break;
         }
 
         EyeCandyPreferences.setLastNavMode(this, position);
 
         return true;
+    }
+
+    private boolean isFragCurrently(final String tag) {
+        final Fragment frag = getCurrentFragment();
+        return frag != null && tag.equals(frag.getTag());
     }
 
     @TargetApi(11)
@@ -286,7 +295,7 @@ public class MainActivity
         final ActionBar ab = getSupportActionBar();
         if (ab == null)
             return;
-        mSquealch = true;
+
         ab.setSelectedNavigationItem(pos);
     }
 

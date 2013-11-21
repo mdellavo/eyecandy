@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">EyeCandy</string>
+    <string name="app_name">Eye Candy</string>
     <string name="wait">conjouring</string>
     <string name="gallery_select">Select</string>
     <string name="dialog_add_subreddit_title">Add Subreddit</string>
