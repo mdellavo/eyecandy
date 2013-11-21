@@ -22,7 +22,9 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.AbsListView;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -33,6 +35,7 @@ import com.nineoldandroids.animation.AnimatorListenerAdapter;
 import com.nineoldandroids.animation.AnimatorSet;
 import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.ViewHelper;
+import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
@@ -72,6 +75,8 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
     private TextView mTitle;
     private View mScrim;
+
+    private ProgressBar mProgressBar;
 
     @Override
     public void onAttach(final Activity activity) {
@@ -141,6 +146,7 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
             }
         });
 
+        mProgressBar = (ProgressBar)rv.findViewById(R.id.progress_bar);
 
         return rv;
     }
@@ -225,8 +231,10 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         if (item.getItemId() == R.id.select) {
             final Thumbnailholder tag = (Thumbnailholder) mZoomedImage.getTag();
-            if (tag != null)
+            if (tag != null) {
+                endZoom(mZoomedImage);
                 mListener.showImage(mQuery, mThumbnailsAdapter.getPositionForItem(tag.image));
+            }
 
             return true;
         }
@@ -347,7 +355,18 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
                 .resize(finalWidth, finalHeight)
                 .centerCrop()
                 .placeholder(thumbView.getDrawable())
-                .into(mZoomedImage);
+                .into(mZoomedImage, new Callback() {
+                    @Override
+                    public void onSuccess() {
+                        fadeOut(mProgressBar);
+                    }
+
+                    @Override
+                    public void onError() {
+                        fadeOut(mProgressBar);
+                        Toast.makeText(getActivity(), R.string.error_loading_zoomed_image, Toast.LENGTH_SHORT);
+                    }
+                });
 
         AnimatorSet set = new AnimatorSet();
         set
@@ -422,20 +441,26 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         if (mZoomed)
             mZoomedImage.performClick();
 
+        Log.d(TAG, "on back pressed - zoomed = %s", mZoomed);
+
         return mZoomed;
     }
 
     private void startZoom(final View v) {
         mZoomed = true;
         getActivity().supportInvalidateOptionsMenu();
+
+        ViewHelper.setAlpha(mProgressBar, 0);
+        mProgressBar.setVisibility(View.VISIBLE);
+        fadeIn(mProgressBar);
     }
 
     private void endZoom(final View v) {
-        getActivity().supportInvalidateOptionsMenu();
         ViewHelper.setAlpha(v, 1);
         mZoomedImage.setVisibility(View.GONE);
         mCurrentAnimator = null;
         mZoomed = false;
+        getActivity().supportInvalidateOptionsMenu();
     }
 
     static class Thumbnailholder {

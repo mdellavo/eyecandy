@@ -13,6 +13,7 @@
 
 
     <GridView
+        android:paddingTop="?attr/actionBarSize"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_gravity="center"
@@ -34,10 +35,19 @@
     <ImageView
         android:layout_height="match_parent"
         android:layout_width="match_parent"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
+        android:layout_gravity="center"
         android:adjustViewBounds="true"
+        android:padding="75dp"
         android:id="@+id/zoomed_image"/>
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_gravity="center"
+        android:indeterminate="true"
+        android:visibility="gone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        />
 
     <RelativeLayout
         android:layout_height="match_parent"

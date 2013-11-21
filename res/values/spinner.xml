@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="modes">
-        <item>Viewer</item>
-        <item>Gallery</item>
-        <item>Random</item>
-        <item>Sources</item>
+        <item>Slide Show</item>
+        <item>Animated Slide Show</item>
+        <item>Image Sources</item>
+        <item>Image Gallery</item>
     </string-array>
 </resources>

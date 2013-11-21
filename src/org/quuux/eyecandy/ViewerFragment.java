@@ -66,6 +66,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     private boolean mFlipping;
 
     private Handler mHandler = new Handler();
+    private int mShortAnimationDuration;
 
     public static ViewerFragment newInstance(final Query query, final int position) {
         final ViewerFragment rv = new ViewerFragment();
@@ -83,6 +84,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mShortAnimationDuration = getResources().getInteger(android.R.integer.config_shortAnimTime);
 
         setHasOptionsMenu(true);
 
@@ -344,6 +347,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
+            int duration;
             boolean imageFailed;
             boolean imageLoaded;
             int position;
@@ -364,7 +368,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             void summon() {
                 ViewHelper.setAlpha(title, 0);
-                ViewPropertyAnimator.animate(title).setDuration(250).alpha(1).setListener(new Animator.AnimatorListener() {
+                ViewPropertyAnimator.animate(title).setDuration(duration).alpha(1).setListener(new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationStart(final Animator animation) {
                     }
@@ -389,7 +393,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             void dismiss() {
                 ViewHelper.setAlpha(title, 1);
-                ViewPropertyAnimator.animate(title).setDuration(1000).alpha(0).setListener(new Animator.AnimatorListener() {
+                ViewPropertyAnimator.animate(title).setDuration(4 * duration).alpha(0).setListener(new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationStart(final Animator animation) {
 
@@ -494,6 +498,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             container.addView(rv);
 
             final Holder holder = new Holder();
+            holder.duration = context.getResources().getInteger(android.R.integer.config_shortAnimTime);
             holder.position = position;
             holder.backing = (ImageView) rv.findViewById(R.id.backing);
             holder.image = (ImageView) rv.findViewById(R.id.image);
@@ -694,7 +699,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                     holder.backingBitmap = backing;
 
                     ViewHelper.setAlpha(holder.backing, 0);
-                    ViewPropertyAnimator.animate(holder.backing).alpha(.4f).setDuration(250).start();
+                    ViewPropertyAnimator.animate(holder.backing).alpha(.4f).setDuration(holder.duration).start();
                 }
             });
         }
@@ -702,7 +707,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         private void onImageLoaded(final Holder holder) {
             holder.image.setVisibility(View.VISIBLE);
             ViewHelper.setAlpha(holder.image, 0);
-            ViewPropertyAnimator.animate(holder.image).alpha(1).setDuration(250).start();
+            ViewPropertyAnimator.animate(holder.image).alpha(1).setDuration(holder.duration).start();
 
             holder.spinner.setVisibility(View.GONE);
 

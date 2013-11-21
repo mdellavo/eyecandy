@@ -28,6 +28,8 @@ public class ScrapeService extends IntentService {
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
     public static String EXTRA_SUBREDDIT = "subreddit";
     public static final String EXTRA_NUM_SCRAPED = "num-scraped";
+    public static final String EXTRA_TASK_COUNT = "task-count";
+    public static final String EXTRA_TASK_STATUS = "task-status";
 
     private RequestQueue mRequestQueue;
 
@@ -72,14 +74,14 @@ public class ScrapeService extends IntentService {
 
     }
 
-    public void onScrapeComplete(final Subreddit subreddit, final int numScraped) {
+    public void onScrapeComplete(final Subreddit subreddit, final boolean status, final int numScraped) {
         sTaskCount--;
-
-        //Log.d(TAG, "scrape complete: %d", numScraped);
 
         final Intent intent = new Intent(ACTION_SCRAPE_COMPLETE);
         intent.putExtra(EXTRA_SUBREDDIT, subreddit);
         intent.putExtra(EXTRA_NUM_SCRAPED, numScraped);
+        intent.putExtra(EXTRA_TASK_STATUS, status);
+        intent.putExtra(EXTRA_TASK_COUNT, sTaskCount);
         sendBroadcast(intent);
 
         if (sTaskCount == 0) {
@@ -116,27 +118,30 @@ public class ScrapeService extends IntentService {
                             return;
 
                         int count = 0;
-                        synchronized (sLock) {
-                            final Session session = EyeCandyDatabase.getSession(ScrapeService.this);
 
-                            for(final ImgurImage i : response.data) {
+                        final Session session = EyeCandyDatabase.getSession(ScrapeService.this);
 
-                                final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
-                                if (knownUrls.contains(img.getUrl())) {
-                                    Log.d(TAG, "skipping %s...", img.getUrl());
-                                    continue;
-                                }
+                        for(final ImgurImage i : response.data) {
 
-                                session.add(img);
-                                count++;
+                            final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
+                            if (knownUrls.contains(img.getUrl())) {
+                                Log.d(TAG, "skipping %s...", img.getUrl());
+                                continue;
                             }
 
-                            subreddit.touch();
-                            session.add(subreddit);
+                            session.add(img);
+                            count++;
+                        }
+
+                        subreddit.touch();
+                        session.add(subreddit);
+
+                        // Prevent dog piling
+                        synchronized (sLock) {
                             session.commit();
                         }
 
-                        onScrapeComplete(subreddit, count);
+                        onScrapeComplete(subreddit, true, count);
 
                     }
                 },
@@ -144,7 +149,7 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onErrorResponse(final VolleyError error) {
                         Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
-                        sTaskCount--;
+                        onScrapeComplete(subreddit, false, 0);
                     }
                 }
         );

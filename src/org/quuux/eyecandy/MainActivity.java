@@ -29,8 +29,8 @@ public class MainActivity
 
     private static final String TAG = "MainActivity";
     private static final String FRAG_RANDOM = "random";
-    private static final String FRAG_GALLERY = "gallery";
-    private static final String FRAG_VIEWER = "viewer";
+    private static final String FRAG_GALLERY = "gallery-%s";
+    private static final String FRAG_VIEWER = "viewer-%s";
     private static final String FRAG_SOURCES = "subreddits";
 
     final private Handler mHandler = new Handler();
@@ -97,6 +97,8 @@ public class MainActivity
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+                Toast.makeText(MainActivity.this, R.string.starting_scrape, Toast.LENGTH_SHORT).show();
+
                 final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
                 startService(intent);
             }
@@ -122,7 +124,6 @@ public class MainActivity
         registerReceiver(mBroadcastReceiver, filter);
 
         hideSystemUi();
-
         summon();
 
     }
@@ -161,15 +162,15 @@ public class MainActivity
                 break;
 
             case 1:
-                onShowGallery();
-                break;
-
-            case 2:
                 onShowRandom();
                 break;
 
-            case 3:
+            case 2:
                 onShowSources();
+                break;
+
+            case 3:
+                onShowGallery();
                 break;
         }
 
@@ -187,7 +188,7 @@ public class MainActivity
                 @Override
                 public void onSystemUiVisibilityChange(final int visibility) {
                     final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0;
-                    if (isVisible)
+                    if (isVisible);
                         summon();
                 }
             });
@@ -200,9 +201,7 @@ public class MainActivity
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setSystemUiVisibility(
-                            View.SYSTEM_UI_FLAG_LOW_PROFILE |
-                            View.SYSTEM_UI_FLAG_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    View.SYSTEM_UI_FLAG_LOW_PROFILE
             );
         }
 
@@ -227,9 +226,9 @@ public class MainActivity
         swapFrag(fragment, tag, false);
     }
 
-    private Fragment getFrag(final String tag) {
+    private Fragment getFrag(final String tag, Object... args) {
         final FragmentManager fm = getSupportFragmentManager();
-        return fm.findFragmentByTag(tag);
+        return fm.findFragmentByTag(String.format(tag, args));
     }
 
     private void onShowRandom() {
@@ -241,7 +240,10 @@ public class MainActivity
 
 
     public void showImage(final Query query, final int position, final boolean addToBackStack) {
-        Fragment frag = getFrag(FRAG_VIEWER);
+
+
+
+        Fragment frag = getFrag(FRAG_VIEWER, query.toSql().hashCode());
         if (frag == null)
             frag = ViewerFragment.newInstance(query, position);
         swapFrag(frag, FRAG_VIEWER, addToBackStack);
@@ -261,7 +263,7 @@ public class MainActivity
     }
 
     public void showGallery(final Query query, final boolean addToBackStack) {
-        Fragment frag = getFrag(FRAG_GALLERY);
+        Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
         if (frag == null)
             frag = GalleryFragment.newInstance(query);
         swapFrag(frag, FRAG_GALLERY, addToBackStack);
@@ -294,10 +296,10 @@ public class MainActivity
     }
 
     private void summon() {
-        //Log.d(TAG, "summon ui");
+        Log.d(TAG, "summon ui");
 
-        getSupportActionBar().show();
-        dismissDelayed(2500);
+        //getSupportActionBar().show();
+        //dismissDelayed(2500);
     }
 
 
@@ -317,10 +319,13 @@ public class MainActivity
             final String action = intent.getAction();
 
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(ScrapeService.EXTRA_SUBREDDIT);
-                final int numScraped = intent.getIntExtra(ScrapeService.EXTRA_NUM_SCRAPED, 0);
-                final String msg = String.format("scraped %s, found %d images", subreddit.getSubreddit(), numScraped);
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+                final int taskCount = intent.getIntExtra(ScrapeService.EXTRA_TASK_COUNT, -1);
+
+                Log.d(TAG, "scrape complete, task count = %s", taskCount);
+
+                if (taskCount == 0)
+                    Toast.makeText(MainActivity.this, R.string.scrape_complete, Toast.LENGTH_SHORT).show();
+
             }
 
         }

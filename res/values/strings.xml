@@ -14,4 +14,7 @@
     <string name="error_loading_image">Error loading image, skipping...</string>
     <string name="dream_viewer">EyeCandy (static)</string>
     <string name="dream_burns">EyeCandy (animated)</string>
+    <string name="starting_scrape">Starting scrape...</string>
+    <string name="scrape_complete">Scrape complete</string>
+    <string name="error_loading_zoomed_image">Error loading image</string>
 </resources>
