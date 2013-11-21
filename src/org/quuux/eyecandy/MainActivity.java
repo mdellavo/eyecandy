@@ -28,47 +28,21 @@ public class MainActivity
 
 
     private static final String TAG = "MainActivity";
+
     private static final String FRAG_RANDOM = "random";
     private static final String FRAG_GALLERY = "gallery-%s";
     private static final String FRAG_VIEWER = "viewer-%s";
     private static final String FRAG_SOURCES = "subreddits";
 
+    public static final int MODE_SLIDE_SHOW = 0;
+    public static final int MODE_BURNS = 1;
+    public static final int MODE_SOURCES = 2;
+    public static final int MODE_GALLERY = 3;
+
     final private Handler mHandler = new Handler();
 
-    GestureDetector mGestureDetector;
-    GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
-        @Override
-        public boolean onDown(final MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public void onShowPress(final MotionEvent e) {
-
-        }
-
-        @Override
-        public boolean onSingleTapUp(final MotionEvent e) {
-            supportInvalidateOptionsMenu();
-            summon();
-            return false;
-        }
-
-        @Override
-        public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
-            return false;
-        }
-
-        @Override
-        public void onLongPress(final MotionEvent e) {
-
-        }
-
-        @Override
-        public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
-            return false;
-        }
-    };
+    private GestureDetector mGestureDetector;
+    private boolean mSquealch;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -156,20 +130,26 @@ public class MainActivity
     @Override
     public boolean onNavigationItemSelected(final int position, final long id) {
 
+        if (mSquealch) {
+            Log.d(TAG, "squealching nav item selection");
+            mSquealch = false;
+            return true;
+        }
+
         switch (position) {
-            case 0:
+            case MODE_SLIDE_SHOW:
                 onShowImage();
                 break;
 
-            case 1:
+            case MODE_BURNS:
                 onShowRandom();
                 break;
 
-            case 2:
+            case MODE_SOURCES:
                 onShowSources();
                 break;
 
-            case 3:
+            case MODE_GALLERY:
                 onShowGallery();
                 break;
         }
@@ -302,6 +282,13 @@ public class MainActivity
         //dismissDelayed(2500);
     }
 
+    public void setSelectedNavigationItemSilent(final int pos) {
+        final ActionBar ab = getSupportActionBar();
+        if (ab == null)
+            return;
+        mSquealch = true;
+        ab.setSelectedNavigationItem(pos);
+    }
 
     final Runnable mDismissCallback = new Runnable() {
         @Override
@@ -331,4 +318,38 @@ public class MainActivity
         }
     };
 
-}
+    GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
+        @Override
+        public boolean onDown(final MotionEvent e) {
+            return false;
+        }
+
+        @Override
+        public void onShowPress(final MotionEvent e) {
+
+        }
+
+        @Override
+        public boolean onSingleTapUp(final MotionEvent e) {
+            supportInvalidateOptionsMenu();
+            summon();
+            return false;
+        }
+
+        @Override
+        public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
+            return false;
+        }
+
+        @Override
+        public void onLongPress(final MotionEvent e) {
+
+        }
+
+        @Override
+        public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
+            return false;
+        }
+    };
+
+    }

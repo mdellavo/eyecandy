@@ -101,12 +101,16 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
     public void onResume() {
         super.onResume();
 
-        final Context context = getActivity();
-        if (context != null) {
-            final IntentFilter filter = new IntentFilter();
-            filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
-            context.registerReceiver(mBroadcastReceiver, filter);
-        }
+        final Activity act = getActivity();
+        if (act == null)
+            return;
+
+        final IntentFilter filter = new IntentFilter();
+        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+        act.registerReceiver(mBroadcastReceiver, filter);
+
+        ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_SOURCES);
+
     }
 
     @Override
