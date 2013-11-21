@@ -83,6 +83,7 @@ public class MainActivity
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+        actionBar.setDisplayShowTitleEnabled(false);
 
         final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.modes, android.R.layout.simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
@@ -121,8 +122,6 @@ public class MainActivity
         hideSystemUi();
 
         summon();
-
-
 
     }
 
@@ -254,7 +253,7 @@ public class MainActivity
 
     private void onShowImage() {
         final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("timesShown, RANDOM()");
-        showImage(q);
+        showImage(q, 0, false);
     }
 
     public void showGallery(final Query query, final boolean addToBackStack) {

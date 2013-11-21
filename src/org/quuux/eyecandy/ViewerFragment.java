@@ -266,9 +266,13 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         holder.summon();
 
-        if (mFlipping)
-            stopFlipping();
-
+        if (holder.imageFailed) {
+            Log.d(TAG, "selected a failed image, skipping...");
+            flipImage();
+        } else if (mFlipping && holder.imageLoaded) {
+            Log.d(TAG, "image loaded and selected, scheduling flip");
+            startFlipping();
+        }
     }
 
     @Override
@@ -311,25 +315,34 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         }
     };
 
-    private void onImageLoaded() {
-        if (mFlipping)
+    private void onImageLoaded(final Adapter.Holder holder) {
+
+        // The on screen page loaded, set callback
+        if (mFlipping && mPager.getCurrentItem() == holder.position) {
+            Log.d(TAG, "currently selected view loaded, scheduling flip");
             startFlipping();
+        }
     }
 
-    private void onImageError() {
+    private void onImageError(final Adapter.Holder holder, final VolleyError error) {
         final Context context = getActivity();
         if (context == null)
             return;
 
-        Toast.makeText(context, R.string.error_loading_image, Toast.LENGTH_LONG).show();
-        flipImage();
+        if (holder.position == mPager.getCurrentItem()) {
+            Log.d(TAG, "image failed on currently selected view, skipping...");
+            Toast.makeText(context, R.string.error_loading_image, Toast.LENGTH_LONG).show();
+            flipImage();
+        }
+
     }
 
     public static class Adapter extends PagerAdapter {
 
         static class Holder {
-            boolean visible;
-
+            boolean imageFailed;
+            boolean imageLoaded;
+            int position;
             Bitmap backingBitmap;
             Bitmap bitmap;
             AnimatedImageDrawable movie;
@@ -477,6 +490,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             container.addView(rv);
 
             final Holder holder = new Holder();
+            holder.position = position;
             holder.backing = (ImageView) rv.findViewById(R.id.backing);
             holder.image = (ImageView) rv.findViewById(R.id.image);
             holder.spinner = (ProgressBar) rv.findViewById(R.id.spinner);
@@ -576,7 +590,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 @Override
                 public void onErrorResponse(final VolleyError error) {
                     Log.e(TAG, "error loading image %s", error, image);
-                    onImageError(error);
+                    onImageError(holder, error);
                 }
             });
 
@@ -622,7 +636,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
                 @Override
                 public void onErrorResponse(final VolleyError error) {
                     Log.e(TAG, "error loading movie - " + image, error);
-                    onImageError(error);
+                    onImageError(holder, error);
                 }
             });
 
@@ -688,20 +702,27 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
             holder.spinner.setVisibility(View.GONE);
 
+            holder.imageLoaded = true;
+
             final ViewerFragment frag = getFrag();
             if (frag == null)
                 return;
 
-            frag.onImageLoaded();
+
+            frag.onImageLoaded(holder);
         }
 
 
-        private void onImageError(final VolleyError error) {
+        private void onImageError(final Holder holder, final VolleyError error) {
             final ViewerFragment frag = getFrag();
             if (frag == null)
                 return;
 
-            frag.onImageError();
+            holder.imageFailed = true;
+            holder.spinner.setVisibility(View.GONE);
+            holder.image.setBackgroundResource(R.drawable.ic_action_alerts_and_states_error);
+
+            frag.onImageError(holder, error);
         }
 
         private void loadItem(final int position, final FetchListener<Image> listener) {

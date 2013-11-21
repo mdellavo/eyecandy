@@ -27,7 +27,26 @@
             android:name=".EyeCandyDream"
             android:exported="true"
             android:icon="@drawable/ic_launcher"
-            android:label="@string/app_name"
+            android:label="@string/dream_burns"
+            android:permission="">
+
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Point to additional information for this dream (optional) -->
+            <!-- <meta-data -->
+            <!--     android:name="android.service.dream" -->
+            <!--     android:resource="@xml/my_dream" /> -->
+        </service>
+
+
+        <service
+            android:name=".EyeCandyViewerDream"
+            android:exported="true"
+            android:icon="@drawable/ic_launcher"
+            android:label="@string/dream_viewer"
             android:permission="">
 
             <intent-filter>

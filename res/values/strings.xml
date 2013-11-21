@@ -12,4 +12,6 @@
     <string name="refresh">Refresh</string>
     <string name="delete">Delete</string>
     <string name="error_loading_image">Error loading image, skipping...</string>
+    <string name="dream_viewer">EyeCandy (static)</string>
+    <string name="dream_burns">EyeCandy (animated)</string>
 </resources>
