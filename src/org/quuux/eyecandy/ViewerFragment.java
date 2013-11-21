@@ -86,6 +86,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         setHasOptionsMenu(true);
 
+        mFlipping = EyeCandyPreferences.isFlipping(getActivity());
+
         final Display display = getActivity().getWindowManager().getDefaultDisplay();
         int width = display.getWidth();
         int height = display.getHeight();
@@ -290,6 +292,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         final FragmentActivity activity = getActivity();
         if (activity != null)
             activity.supportInvalidateOptionsMenu();
+
+        EyeCandyPreferences.setFlipping(activity, mFlipping);
     }
 
     private void startFlipping() {

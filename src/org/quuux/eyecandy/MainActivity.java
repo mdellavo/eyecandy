@@ -88,6 +88,8 @@ public class MainActivity
         final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.modes, android.R.layout.simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
+        actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
+
         mGestureDetector = new GestureDetector(this, mGestureListener);
 
         setupSystemUi();
@@ -170,6 +172,8 @@ public class MainActivity
                 onShowSources();
                 break;
         }
+
+        EyeCandyPreferences.setLastNavMode(this, position);
 
         return true;
     }

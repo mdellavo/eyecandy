@@ -16,12 +16,14 @@ import org.quuux.orm.QueryListener;
 import org.quuux.orm.Session;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
-    private static final long SCRAPE_INTERVAL =  1000 * 60 * 60 * 2;
+    private static final long SCRAPE_INTERVAL = 1000 * 60 * 60 * 2;
 
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
     public static String EXTRA_SUBREDDIT = "subreddit";
@@ -100,6 +102,8 @@ public class ScrapeService extends IntentService {
 
         final String url = String.format("http://imgur.com/r/%s.json", subreddit.getSubreddit());
 
+        final Set<String> knownUrls = new HashSet<String>();
+
         final GsonRequest<ImgurImageList> request = new GsonRequest<ImgurImageList>(
                 ImgurImageList.class,
                 Request.Method.GET,
@@ -111,22 +115,28 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
+                        int count = 0;
                         synchronized (sLock) {
                             final Session session = EyeCandyDatabase.getSession(ScrapeService.this);
 
                             for(final ImgurImage i : response.data) {
 
                                 final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
+                                if (knownUrls.contains(img.getUrl())) {
+                                    Log.d(TAG, "skipping %s...", img.getUrl());
+                                    continue;
+                                }
+
                                 session.add(img);
+                                count++;
                             }
 
                             subreddit.touch();
                             session.add(subreddit);
-
                             session.commit();
                         }
 
-                        onScrapeComplete(subreddit, response.data.size());
+                        onScrapeComplete(subreddit, count);
 
                     }
                 },
@@ -134,15 +144,25 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onErrorResponse(final VolleyError error) {
                         Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
+                        sTaskCount--;
                     }
                 }
-        ) {
+        );
+
+
+        final Session session = EyeCandyDatabase.getSession(this);
+        session.query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).all(new QueryListener<Image>() {
             @Override
-            public Priority getPriority() {
-                return Priority.LOW;
+            public void onResult(final List<Image> images) {
+
+                if (images != null)
+                    for(Image i : images)
+                        knownUrls.add(i.getUrl());
+
+
+                mRequestQueue.add(request);
             }
-        };
-        mRequestQueue.add(request);
+        });
     }
 
     private static class ImgurImage {
