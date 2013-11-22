@@ -131,9 +131,6 @@ public class MainActivity
 
     @Override
     public void onLeanbackTouch(final MotionEvent event) {
-
-        Log.d(TAG, "onTouch(event=%s)", event);
-
         mGestureDetector.onTouchEvent(event);
     }
 

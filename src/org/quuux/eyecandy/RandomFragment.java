@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsListView;
@@ -26,19 +27,34 @@ import org.quuux.orm.Query;
 import org.quuux.orm.Session;
 import org.quuux.orm.util.QueryAdapter;
 
-public class RandomFragment extends Fragment {
+public class RandomFragment extends Fragment implements View.OnTouchListener {
 
     public interface Listener {
         void startLeanback();
         void endLeanback();
+        boolean isLeanback();
+        void setSelectedNavigationItemSilent(int pos);
+        void onLeanbackTouch(final MotionEvent ev);
     }
 
     private static final String TAG = Log.buildTag(RandomFragment.class);
 
     private BurnsView mBurnsView;
     private ImageAdapter mAdapter;
-
+    private Listener mListener;
     private RequestQueue mRequestQueue;
+
+
+    @Override
+    public void onAttach(final Activity activity) {
+        super.onAttach(activity);
+
+        if (!(activity instanceof Listener)) {
+            throw new IllegalArgumentException("Activity must implement Listener");
+        }
+
+        mListener = (Listener) activity;
+    }
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
@@ -48,7 +64,6 @@ public class RandomFragment extends Fragment {
         mRequestQueue = EyeCandyVolley.getRequestQueue(context);
 
         mAdapter = new ImageAdapter(context, mRequestQueue);
-
     }
 
     @Override
@@ -57,6 +72,7 @@ public class RandomFragment extends Fragment {
 
         mBurnsView = (BurnsView)rv.findViewById(R.id.burns);
         mBurnsView.setAdapter(mAdapter);
+        mBurnsView.setOnTouchListener(this);
 
         return rv;
     }
@@ -75,8 +91,8 @@ public class RandomFragment extends Fragment {
 
         mBurnsView.startAnimation();
 
-        ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_BURNS);
-        ((MainActivity)act).startLeanback();
+        mListener.setSelectedNavigationItemSilent(MainActivity.MODE_BURNS);
+        mListener.startLeanback();
     }
 
     @Override
@@ -90,8 +106,15 @@ public class RandomFragment extends Fragment {
             return;
 
         act.unregisterReceiver(mBroadcastReceiver);
-        ((MainActivity)act).endLeanback();
+        mListener.endLeanback();
     }
+
+    @Override
+    public boolean onTouch(final View v, final MotionEvent event) {
+        mListener.onLeanbackTouch(event);
+        return false;
+    }
+
 
     public static RandomFragment newInstance() {
         final RandomFragment rv = new RandomFragment();

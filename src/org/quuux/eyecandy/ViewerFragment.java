@@ -598,7 +598,7 @@ public class ViewerFragment
                     holder.title.setText(image.getTitle());
                     holder.title.setVisibility(View.VISIBLE);
                     ViewHelper.setAlpha(holder.title, 0);
-                    
+
                     Log.d(TAG, "item @ pos %s = %s", position, image);
                     if (image.isAnimated()) {
                         loadMovie(holder, image);
