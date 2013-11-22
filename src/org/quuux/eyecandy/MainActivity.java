@@ -26,7 +26,7 @@ public class MainActivity
                    ViewerFragment.Listener,
                    RandomFragment.Listener,
                    GalleryFragment.Listener,
-                   SourcesFragment.Listener {
+                   SourcesFragment.Listener, View.OnTouchListener {
 
 
     private static final String TAG = "MainActivity";
@@ -54,6 +54,8 @@ public class MainActivity
 
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
+        setContentView(R.layout.base);
+
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
@@ -64,15 +66,12 @@ public class MainActivity
 
         actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
 
-        mGestureDetector = new GestureDetector(this, mGestureListener);
-
         setupSystemUi();
 
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(MainActivity.this, R.string.starting_scrape, Toast.LENGTH_SHORT).show();
-
+                //Toast.makeText(MainActivity.this, R.string.starting_scrape, Toast.LENGTH_SHORT).show();
                 final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
                 startService(intent);
             }
@@ -80,6 +79,7 @@ public class MainActivity
 
         ViewServer.get(this).addWindow(this);
 
+        setLeanbackListener(findViewById(R.id.root));
     }
 
     @Override
@@ -129,15 +129,24 @@ public class MainActivity
     };
 
     @Override
-    public boolean dispatchTouchEvent(final MotionEvent ev) {
-        mGestureDetector.onTouchEvent(ev);
+    public void setLeanbackListener(final View v) {
+        mGestureDetector = new GestureDetector(this, mGestureListener);
+        v.setOnTouchListener(this);
+    }
+
+    @Override
+    public boolean onTouch(final View v, final MotionEvent event) {
+
+        Log.d(TAG, "onTouch(view=%s | event=%s)", v, event);
+
+        mGestureDetector.onTouchEvent(event);
 
         if (mLeanback) {
             mHandler.removeCallbacks(mLeanbackCallback);
             mHandler.postDelayed(mLeanbackCallback, 2500);
         }
 
-        return super.dispatchTouchEvent(ev);
+        return false;
     }
 
     @Override
@@ -214,14 +223,9 @@ public class MainActivity
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setSystemUiVisibility(
-//                              View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-//                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-//                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-//                            | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
-                             View.SYSTEM_UI_FLAG_LOW_PROFILE
+                    View.SYSTEM_UI_FLAG_LOW_PROFILE
             );
         }
-
     }
 
     @TargetApi(11)
@@ -250,6 +254,10 @@ public class MainActivity
         showSystemUi();
     }
 
+    public boolean isLeanback() {
+        return mLeanback;
+    }
+
     public void toggleLeanback() {
         if (mLeanback)
             endLeanback();
@@ -258,7 +266,7 @@ public class MainActivity
     }
 
     private Fragment getCurrentFragment() {
-        return getSupportFragmentManager().findFragmentById(android.R.id.content);
+        return getSupportFragmentManager().findFragmentById(R.id.root);
     }
 
     private void swapFrag(final Fragment fragment, final String tag, final boolean addToBackStack) {
@@ -266,7 +274,7 @@ public class MainActivity
         final FragmentTransaction ft = frags.beginTransaction();
         ft.setTransition(FragmentTransaction.TRANSIT_ENTER_MASK);
         //ft.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
-        ft.replace(android.R.id.content, fragment, tag);
+        ft.replace(R.id.root, fragment, tag);
         if (addToBackStack)
             ft.addToBackStack(null);
         ft.commit();
@@ -339,7 +347,6 @@ public class MainActivity
         ab.setSelectedNavigationItem(pos);
     }
 
-
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
         @Override
@@ -349,12 +356,7 @@ public class MainActivity
 
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
                 final int taskCount = intent.getIntExtra(ScrapeService.EXTRA_TASK_COUNT, -1);
-
                 Log.d(TAG, "scrape complete, task count = %s", taskCount);
-
-                if (taskCount == 0)
-                    Toast.makeText(MainActivity.this, R.string.scrape_complete, Toast.LENGTH_SHORT).show();
-
             }
 
         }

@@ -57,11 +57,19 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ViewerFragment extends Fragment implements ViewPager.PageTransformer, ViewPager.OnPageChangeListener {
+public class ViewerFragment
+        extends Fragment
+        implements ViewPager.PageTransformer,
+                   ViewPager.OnPageChangeListener,
+                   View.OnTouchListener {
+
 
     public interface Listener {
         void startLeanback();
         void endLeanback();
+        boolean isLeanback();
+        void setSelectedNavigationItemSilent(int pos);
+        void setLeanbackListener(final View v);
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
@@ -69,6 +77,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     private Adapter mAdapter;
     private ViewPager mPager;
     private boolean mFlipping;
+    private Listener mListener;
 
     private Handler mHandler = new Handler();
     private int mShortAnimationDuration;
@@ -84,6 +93,18 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
     public static ViewerFragment newInstance(final Query query) {
         return newInstance(query, 0);
+    }
+
+
+    @Override
+    public void onAttach(final Activity activity) {
+        super.onAttach(activity);
+
+        if (!(activity instanceof Listener)) {
+            throw new IllegalArgumentException("Activity must implement Listener");
+        }
+
+        mListener = (Listener) activity;
     }
 
     @Override
@@ -125,6 +146,9 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
         mPager.setAdapter(mAdapter);
         mPager.setOnPageChangeListener(this);
+
+        mListener.setLeanbackListener(mPager);
+
         return rv;
     }
 
@@ -164,8 +188,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         act.registerReceiver(mBroadcastReceiver, filter);
 
-        ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_SLIDE_SHOW);
-        ((MainActivity)act).startLeanback();
+        mListener.setSelectedNavigationItemSilent(MainActivity.MODE_SLIDE_SHOW);
+        mListener.startLeanback();
     }
 
     @Override
@@ -180,7 +204,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             return;
 
         act.unregisterReceiver(mBroadcastReceiver);
-        ((MainActivity)act).endLeanback();
+        mListener.endLeanback();
     }
 
     @Override
@@ -266,6 +290,24 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
     }
 
     @Override
+    public boolean onTouch(final View v, final MotionEvent event) {
+        final View cur = mPager.findViewWithTag(mPager.getCurrentItem());
+
+        final Holder holder = (Holder) cur.getTag(R.id.holder);
+
+        Log.d(TAG, "onTouch(position = %s | view = %s)", holder.position, v);
+
+        if (holder.position != mPager.getCurrentItem())
+            return false;
+
+        if (holder != null && event.getAction() == MotionEvent.ACTION_DOWN) {
+            holder.summon();
+        }
+
+        return false;
+    }
+
+    @Override
     public void onPageScrolled(final int i, final float v, final int i2) {
 
     }
@@ -275,11 +317,10 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         Log.d(TAG, "page selected %d", i);
         final View v = mPager.findViewWithTag(i);
 
-
         if (v == null)
             return;
 
-        final Adapter.Holder holder = (Adapter.Holder) v.getTag(R.id.holder);
+        final Holder holder = (Holder) v.getTag(R.id.holder);
         if (holder == null)
             return;
 
@@ -336,7 +377,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         }
     };
 
-    private void onImageLoaded(final Adapter.Holder holder) {
+    private void onImageLoaded(final Holder holder) {
 
         // The on screen page loaded, set callback
         if (mFlipping && mPager.getCurrentItem() == holder.position) {
@@ -345,7 +386,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         }
     }
 
-    private void onImageError(final Adapter.Holder holder, final VolleyError error) {
+    private void onImageError(final Holder holder, final VolleyError error) {
         final Context context = getActivity();
         if (context == null)
             return;
@@ -358,79 +399,78 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
 
     }
 
-    public static class Adapter extends PagerAdapter {
+    static class Holder {
+        int duration;
+        boolean imageFailed;
+        boolean imageLoaded;
+        int position;
+        Bitmap backingBitmap;
+        Bitmap bitmap;
+        AnimatedImageDrawable movie;
+        ImageView image;
+        ImageView backing;
+        ProgressBar spinner;
+        TextView title;
 
-        static class Holder {
-            int duration;
-            boolean imageFailed;
-            boolean imageLoaded;
-            int position;
-            Bitmap backingBitmap;
-            Bitmap bitmap;
-            AnimatedImageDrawable movie;
-            ImageView image;
-            ImageView backing;
-            ProgressBar spinner;
-            TextView title;
+        private Runnable mDismissCallback = new Runnable() {
+            @Override
+            public void run() {
+                dismiss();
+            }
+        };
 
-            private Runnable mDismissCallback = new Runnable() {
+        void summon() {
+            ViewHelper.setAlpha(title, 0);
+            ViewPropertyAnimator.animate(title).setDuration(duration).alpha(1).setListener(new Animator.AnimatorListener() {
                 @Override
-                public void run() {
-                    dismiss();
+                public void onAnimationStart(final Animator animation) {
                 }
-            };
 
-            void summon() {
-                ViewHelper.setAlpha(title, 0);
-                ViewPropertyAnimator.animate(title).setDuration(duration).alpha(1).setListener(new Animator.AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(final Animator animation) {
-                    }
+                @Override
+                public void onAnimationEnd(final Animator animation) {
+                    title.removeCallbacks(mDismissCallback);
+                    title.postDelayed(mDismissCallback, 3000);
+                }
 
-                    @Override
-                    public void onAnimationEnd(final Animator animation) {
-                        title.removeCallbacks(mDismissCallback);
-                        title.postDelayed(mDismissCallback, 3000);
-                    }
+                @Override
+                public void onAnimationCancel(final Animator animation) {
 
-                    @Override
-                    public void onAnimationCancel(final Animator animation) {
+                }
 
-                    }
+                @Override
+                public void onAnimationRepeat(final Animator animation) {
 
-                    @Override
-                    public void onAnimationRepeat(final Animator animation) {
-
-                    }
-                });
-            }
-
-            void dismiss() {
-                ViewHelper.setAlpha(title, 1);
-                ViewPropertyAnimator.animate(title).setDuration(4 * duration).alpha(0).setListener(new Animator.AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(final Animator animation) {
-
-                    }
-
-                    @Override
-                    public void onAnimationEnd(final Animator animation) {
-                    }
-
-                    @Override
-                    public void onAnimationCancel(final Animator animation) {
-
-                    }
-
-                    @Override
-                    public void onAnimationRepeat(final Animator animation) {
-
-                    }
-                });
-            }
-
+                }
+            });
         }
 
+        void dismiss() {
+            ViewHelper.setAlpha(title, 1);
+            ViewPropertyAnimator.animate(title).setDuration(4 * duration).alpha(0).setListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(final Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationEnd(final Animator animation) {
+                }
+
+                @Override
+                public void onAnimationCancel(final Animator animation) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(final Animator animation) {
+
+                }
+            });
+        }
+
+    }
+
+    public static class Adapter extends PagerAdapter {
         private final Query mQuery;
         private final Point mSize;
         private final WeakReference<ViewerFragment> mFrag;
@@ -523,21 +563,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
             rv.setTag(R.id.holder, holder);
 
 
-            rv.setOnTouchListener(new View.OnTouchListener() {
-
-                @Override
-                public boolean onTouch(final View v, final MotionEvent event) {
-
-                    final Holder holder = (Holder) v.getTag(R.id.holder);
-
-                    if (holder != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-
-                        holder.summon();
-                    }
-
-                    return false;
-                }
-            });
+            rv.setOnTouchListener(getFrag());
 
             loadItem(position, new FetchListener<Image>() {
                 @Override
@@ -670,6 +696,8 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
             final View view = (View)object;
             final Holder holder = (Holder) view.getTag(R.id.holder);
+
+            view.setOnClickListener(null);
 
             if (holder.bitmap != null) {
                 Log.d(TAG, "recycling bitmap");
