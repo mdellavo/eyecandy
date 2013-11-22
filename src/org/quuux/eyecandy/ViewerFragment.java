@@ -19,11 +19,13 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.Display;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -63,13 +65,12 @@ public class ViewerFragment
                    ViewPager.OnPageChangeListener,
                    View.OnTouchListener {
 
-
     public interface Listener {
         void startLeanback();
         void endLeanback();
         boolean isLeanback();
         void setSelectedNavigationItemSilent(int pos);
-        void setLeanbackListener(final View v);
+        void onLeanbackTouch(final MotionEvent ev);
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
@@ -78,7 +79,7 @@ public class ViewerFragment
     private ViewPager mPager;
     private boolean mFlipping;
     private Listener mListener;
-
+    private GestureDetector mGestureDetector;
     private Handler mHandler = new Handler();
     private int mShortAnimationDuration;
 
@@ -117,6 +118,8 @@ public class ViewerFragment
 
         mFlipping = EyeCandyPreferences.isFlipping(getActivity());
 
+        mGestureDetector = new GestureDetector(getActivity(), mGestureListener);
+
         final Display display = getActivity().getWindowManager().getDefaultDisplay();
         int width = display.getWidth();
         int height = display.getHeight();
@@ -146,8 +149,6 @@ public class ViewerFragment
 
         mPager.setAdapter(mAdapter);
         mPager.setOnPageChangeListener(this);
-
-        mListener.setLeanbackListener(mPager);
 
         return rv;
     }
@@ -291,19 +292,8 @@ public class ViewerFragment
 
     @Override
     public boolean onTouch(final View v, final MotionEvent event) {
-        final View cur = mPager.findViewWithTag(mPager.getCurrentItem());
-
-        final Holder holder = (Holder) cur.getTag(R.id.holder);
-
-        Log.d(TAG, "onTouch(position = %s | view = %s)", holder.position, v);
-
-        if (holder.position != mPager.getCurrentItem())
-            return false;
-
-        if (holder != null && event.getAction() == MotionEvent.ACTION_DOWN) {
-            holder.summon();
-        }
-
+        mListener.onLeanbackTouch(event);
+        mGestureDetector.onTouchEvent(event);
         return false;
     }
 
@@ -324,8 +314,6 @@ public class ViewerFragment
         if (holder == null)
             return;
 
-        holder.summon();
-
         if (holder.imageFailed) {
             Log.d(TAG, "selected a failed image, skipping...");
             flipImage();
@@ -338,6 +326,21 @@ public class ViewerFragment
     @Override
     public void onPageScrollStateChanged(final int i) {
 
+    }
+
+    private void toggleTitle() {
+        final View cur = mPager.findViewWithTag(mPager.getCurrentItem());
+        if (cur == null)
+            return;
+
+        final Holder holder = (Holder) cur.getTag(R.id.holder);
+        if (holder == null)
+            return;
+
+        if (mListener.isLeanback())
+            holder.dismiss();
+        else
+            holder.summon();
     }
 
     private void toggleFlipping() {
@@ -420,52 +423,55 @@ public class ViewerFragment
         };
 
         void summon() {
-            ViewHelper.setAlpha(title, 0);
-            ViewPropertyAnimator.animate(title).setDuration(duration).alpha(1).setListener(new Animator.AnimatorListener() {
-                @Override
-                public void onAnimationStart(final Animator animation) {
-                }
+            ViewPropertyAnimator
+                    .animate(title)
+                    .setDuration(Math.round(duration))
+                    .alpha(1)
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(final Animator animation) {
+                        }
+                        @Override
+                        public void onAnimationEnd(final Animator animation) {
+                        }
 
-                @Override
-                public void onAnimationEnd(final Animator animation) {
-                    title.removeCallbacks(mDismissCallback);
-                    title.postDelayed(mDismissCallback, 3000);
-                }
+                        @Override
+                        public void onAnimationCancel(final Animator animation) {
 
-                @Override
-                public void onAnimationCancel(final Animator animation) {
+                        }
 
-                }
+                        @Override
+                        public void onAnimationRepeat(final Animator animation) {
 
-                @Override
-                public void onAnimationRepeat(final Animator animation) {
-
-                }
-            });
+                        }
+                    });
         }
 
         void dismiss() {
-            ViewHelper.setAlpha(title, 1);
-            ViewPropertyAnimator.animate(title).setDuration(4 * duration).alpha(0).setListener(new Animator.AnimatorListener() {
-                @Override
-                public void onAnimationStart(final Animator animation) {
+            ViewPropertyAnimator
+                    .animate(title)
+                    .setDuration(Math.round(ViewHelper.getAlpha(title) * 4 * duration))
+                    .alpha(0)
+                    .setListener(new Animator.AnimatorListener() {
+                        @Override
+                        public void onAnimationStart(final Animator animation) {
 
-                }
+                        }
 
-                @Override
-                public void onAnimationEnd(final Animator animation) {
-                }
+                        @Override
+                        public void onAnimationEnd(final Animator animation) {
+                        }
 
-                @Override
-                public void onAnimationCancel(final Animator animation) {
+                        @Override
+                        public void onAnimationCancel(final Animator animation) {
 
-                }
+                        }
 
-                @Override
-                public void onAnimationRepeat(final Animator animation) {
+                        @Override
+                        public void onAnimationRepeat(final Animator animation) {
 
-                }
-            });
+                        }
+                    });
         }
 
     }
@@ -591,8 +597,8 @@ public class ViewerFragment
 
                     holder.title.setText(image.getTitle());
                     holder.title.setVisibility(View.VISIBLE);
-                    holder.summon();
-
+                    ViewHelper.setAlpha(holder.title, 0);
+                    
                     Log.d(TAG, "item @ pos %s = %s", position, image);
                     if (image.isAnimated()) {
                         loadMovie(holder, image);
@@ -816,6 +822,15 @@ public class ViewerFragment
                 }
             }
 
+        }
+    };
+
+    final GestureDetector.OnGestureListener mGestureListener = new GestureDetector.SimpleOnGestureListener() {
+        @Override
+        public boolean onSingleTapUp(final MotionEvent e) {
+            Log.d(TAG, "tap!");
+            toggleTitle();
+            return false;
         }
     };
 

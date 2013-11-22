@@ -26,7 +26,7 @@ public class MainActivity
                    ViewerFragment.Listener,
                    RandomFragment.Listener,
                    GalleryFragment.Listener,
-                   SourcesFragment.Listener, View.OnTouchListener {
+                   SourcesFragment.Listener {
 
 
     private static final String TAG = "MainActivity";
@@ -66,6 +66,8 @@ public class MainActivity
 
         actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
 
+        mGestureDetector = new GestureDetector(this, mGestureListener);
+
         setupSystemUi();
 
         mHandler.postDelayed(new Runnable() {
@@ -79,7 +81,6 @@ public class MainActivity
 
         ViewServer.get(this).addWindow(this);
 
-        setLeanbackListener(findViewById(R.id.root));
     }
 
     @Override
@@ -129,24 +130,11 @@ public class MainActivity
     };
 
     @Override
-    public void setLeanbackListener(final View v) {
-        mGestureDetector = new GestureDetector(this, mGestureListener);
-        v.setOnTouchListener(this);
-    }
+    public void onLeanbackTouch(final MotionEvent event) {
 
-    @Override
-    public boolean onTouch(final View v, final MotionEvent event) {
-
-        Log.d(TAG, "onTouch(view=%s | event=%s)", v, event);
+        Log.d(TAG, "onTouch(event=%s)", event);
 
         mGestureDetector.onTouchEvent(event);
-
-        if (mLeanback) {
-            mHandler.removeCallbacks(mLeanbackCallback);
-            mHandler.postDelayed(mLeanbackCallback, 2500);
-        }
-
-        return false;
     }
 
     @Override
@@ -347,6 +335,7 @@ public class MainActivity
         ab.setSelectedNavigationItem(pos);
     }
 
+
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
         @Override
@@ -369,38 +358,21 @@ public class MainActivity
         }
     };
 
-    final GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
-        @Override
-        public boolean onDown(final MotionEvent e) {
-            return false;
-        }
-
-        @Override
-        public void onShowPress(final MotionEvent e) {
-
-        }
+    final GestureDetector.OnGestureListener mGestureListener = new GestureDetector.SimpleOnGestureListener() {
 
         @Override
         public boolean onSingleTapUp(final MotionEvent e) {
             supportInvalidateOptionsMenu();
             toggleLeanback();
+
+            if (mLeanback) {
+                mHandler.removeCallbacks(mLeanbackCallback);
+                mHandler.postDelayed(mLeanbackCallback, 2500);
+            }
+
             return false;
         }
 
-        @Override
-        public boolean onScroll(final MotionEvent e1, final MotionEvent e2, final float distanceX, final float distanceY) {
-            return false;
-        }
-
-        @Override
-        public void onLongPress(final MotionEvent e) {
-
-        }
-
-        @Override
-        public boolean onFling(final MotionEvent e1, final MotionEvent e2, final float velocityX, final float velocityY) {
-            return false;
-        }
     };
 
 }
