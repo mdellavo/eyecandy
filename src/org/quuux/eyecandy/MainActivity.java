@@ -189,17 +189,18 @@ public class MainActivity
             v.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
                 @Override
                 public void onSystemUiVisibilityChange(final int visibility) {
-                    final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0
-                            || (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0
-                            || (visibility & View.SYSTEM_UI_FLAG_LOW_PROFILE) == 0;
+                    final boolean isAwake = (visibility & View.SYSTEM_UI_FLAG_LOW_PROFILE) == 0;
 
-                    Log.d(TAG, "system ui visibility change: isVisible=%s", isVisible);
+                    Log.d(TAG, "system ui visibility change: isAwake=%s", isAwake);
 
-                    if (isVisible) {
+                    if (isAwake) {
                         getSupportActionBar().show();
+                        mLeanback = false;
                     } else {
                         getSupportActionBar().hide();
                     }
+
+
                 }
             });
         }
@@ -225,7 +226,7 @@ public class MainActivity
 
     @TargetApi(11)
     private void showSystemUi() {
-        final View v = findViewById(android.R.id.content);
+        final View v = getWindow().getDecorView();
 
         Log.d(TAG, "show system ui");
 
@@ -244,8 +245,16 @@ public class MainActivity
     public void endLeanback() {
         Log.d(TAG, "end leanback");
         mLeanback = false;
+        mHandler.removeCallbacks(mLeanbackCallback);
         getSupportActionBar().show();
         showSystemUi();
+    }
+
+    public void toggleLeanback() {
+        if (mLeanback)
+            endLeanback();
+        else
+            startLeanback();
     }
 
     private Fragment getCurrentFragment() {
@@ -351,6 +360,13 @@ public class MainActivity
         }
     };
 
+    final Runnable mTapCallback = new Runnable() {
+        @Override
+        public void run() {
+
+        }
+    };
+
     final GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
         @Override
         public boolean onDown(final MotionEvent e) {
@@ -365,6 +381,7 @@ public class MainActivity
         @Override
         public boolean onSingleTapUp(final MotionEvent e) {
             supportInvalidateOptionsMenu();
+            toggleLeanback();
             return false;
         }
 
