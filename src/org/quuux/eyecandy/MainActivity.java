@@ -23,6 +23,8 @@ import org.quuux.orm.Query;
 public class MainActivity
         extends ActionBarActivity
         implements ActionBar.OnNavigationListener,
+                   ViewerFragment.Listener,
+                   RandomFragment.Listener,
                    GalleryFragment.Listener,
                    SourcesFragment.Listener {
 
@@ -43,6 +45,7 @@ public class MainActivity
 
     private GestureDetector mGestureDetector;
     private boolean mSquealch;
+    private boolean mLeanback;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -50,9 +53,6 @@ public class MainActivity
         super.onCreate(savedInstanceState);
 
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
-        getWindow().addFlags(
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        );
 
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
@@ -93,13 +93,12 @@ public class MainActivity
         super.onResume();
         ViewServer.get(this).setFocusedWindow(this);
 
+        if(mLeanback)
+            startLeanback();
+
         final IntentFilter filter = new IntentFilter();
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         registerReceiver(mBroadcastReceiver, filter);
-
-        hideSystemUi();
-        summon();
-
     }
 
     @Override
@@ -121,9 +120,23 @@ public class MainActivity
         super.onBackPressed();
     }
 
+    private final Runnable mLeanbackCallback = new Runnable() {
+        @Override
+        public void run() {
+            Log.d(TAG, "resuming leanback...");
+            startLeanback();
+        }
+    };
+
     @Override
     public boolean dispatchTouchEvent(final MotionEvent ev) {
         mGestureDetector.onTouchEvent(ev);
+
+        if (mLeanback) {
+            mHandler.removeCallbacks(mLeanbackCallback);
+            mHandler.postDelayed(mLeanbackCallback, 2500);
+        }
+
         return super.dispatchTouchEvent(ev);
     }
 
@@ -170,15 +183,23 @@ public class MainActivity
 
     @TargetApi(11)
     private void setupSystemUi() {
-        final View v = findViewById(android.R.id.content);
+        final View v = getWindow().getDecorView();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
                 @Override
                 public void onSystemUiVisibilityChange(final int visibility) {
-                    final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0;
-                    if (isVisible);
-                        summon();
+                    final boolean isVisible = (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0
+                            || (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0
+                            || (visibility & View.SYSTEM_UI_FLAG_LOW_PROFILE) == 0;
+
+                    Log.d(TAG, "system ui visibility change: isVisible=%s", isVisible);
+
+                    if (isVisible) {
+                        getSupportActionBar().show();
+                    } else {
+                        getSupportActionBar().hide();
+                    }
                 }
             });
         }
@@ -186,14 +207,45 @@ public class MainActivity
 
     @TargetApi(11)
     private void hideSystemUi() {
-        final View v = findViewById(android.R.id.content);
+        final View v = getWindow().getDecorView();
+
+        Log.d(TAG, "hide system ui");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             v.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LOW_PROFILE
+//                              View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+//                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+//                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+//                            | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                             View.SYSTEM_UI_FLAG_LOW_PROFILE
             );
         }
 
+    }
+
+    @TargetApi(11)
+    private void showSystemUi() {
+        final View v = findViewById(android.R.id.content);
+
+        Log.d(TAG, "show system ui");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            v.setSystemUiVisibility(0);
+        }
+    }
+
+    public void startLeanback() {
+        Log.d(TAG, "start leanback");
+        mLeanback = true;
+        getSupportActionBar().hide();
+        hideSystemUi();
+    }
+
+    public void endLeanback() {
+        Log.d(TAG, "end leanback");
+        mLeanback = false;
+        getSupportActionBar().show();
+        showSystemUi();
     }
 
     private Fragment getCurrentFragment() {
@@ -229,9 +281,6 @@ public class MainActivity
 
 
     public void showImage(final Query query, final int position, final boolean addToBackStack) {
-
-
-
         Fragment frag = getFrag(FRAG_VIEWER, query.toSql().hashCode());
         if (frag == null)
             frag = ViewerFragment.newInstance(query, position);
@@ -273,24 +322,6 @@ public class MainActivity
         swapFrag(frag, FRAG_SOURCES, false);
     }
 
-    private void dismiss() {
-        //Log.d(TAG, "dismiss ui");
-        getSupportActionBar().hide();
-        hideSystemUi();
-    }
-
-    private void dismissDelayed(long t) {
-        mHandler.removeCallbacks(mDismissCallback);
-        mHandler.postDelayed(mDismissCallback, t);
-    }
-
-    private void summon() {
-        Log.d(TAG, "summon ui");
-
-        //getSupportActionBar().show();
-        //dismissDelayed(2500);
-    }
-
     public void setSelectedNavigationItemSilent(final int pos) {
         final ActionBar ab = getSupportActionBar();
         if (ab == null)
@@ -298,13 +329,6 @@ public class MainActivity
 
         ab.setSelectedNavigationItem(pos);
     }
-
-    final Runnable mDismissCallback = new Runnable() {
-        @Override
-        public void run() {
-            dismiss();
-        }
-    };
 
 
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -327,7 +351,7 @@ public class MainActivity
         }
     };
 
-    GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
+    final GestureDetector.OnGestureListener mGestureListener = new GestureDetector.OnGestureListener() {
         @Override
         public boolean onDown(final MotionEvent e) {
             return false;
@@ -341,7 +365,6 @@ public class MainActivity
         @Override
         public boolean onSingleTapUp(final MotionEvent e) {
             supportInvalidateOptionsMenu();
-            summon();
             return false;
         }
 
@@ -361,4 +384,4 @@ public class MainActivity
         }
     };
 
-    }
+}

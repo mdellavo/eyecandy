@@ -28,6 +28,11 @@ import org.quuux.orm.util.QueryAdapter;
 
 public class RandomFragment extends Fragment {
 
+    public interface Listener {
+        void startLeanback();
+        void endLeanback();
+    }
+
     private static final String TAG = Log.buildTag(RandomFragment.class);
 
     private BurnsView mBurnsView;
@@ -71,7 +76,7 @@ public class RandomFragment extends Fragment {
         mBurnsView.startAnimation();
 
         ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_BURNS);
-
+        ((MainActivity)act).startLeanback();
     }
 
     @Override
@@ -80,10 +85,12 @@ public class RandomFragment extends Fragment {
 
         mBurnsView.stopAnimation();
 
-        final Context context = getActivity();
-        if (context != null) {
-            context.unregisterReceiver(mBroadcastReceiver);
-        }
+        final Activity act = getActivity();
+        if (act == null)
+            return;
+
+        act.unregisterReceiver(mBroadcastReceiver);
+        ((MainActivity)act).endLeanback();
     }
 
     public static RandomFragment newInstance() {

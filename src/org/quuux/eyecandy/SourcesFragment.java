@@ -109,6 +109,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         act.registerReceiver(mBroadcastReceiver, filter);
 
+        // FIXME move to listener, do this elsewhere too
         ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_SOURCES);
 
     }

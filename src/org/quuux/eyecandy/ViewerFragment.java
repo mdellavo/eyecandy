@@ -59,6 +59,11 @@ import java.util.Map;
 
 public class ViewerFragment extends Fragment implements ViewPager.PageTransformer, ViewPager.OnPageChangeListener {
 
+    public interface Listener {
+        void startLeanback();
+        void endLeanback();
+    }
+
     private static final String TAG = Log.buildTag(ViewerFragment.class);
     private static final long FLIP_DELAY = 15 * 1000;
     private Adapter mAdapter;
@@ -160,7 +165,7 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         act.registerReceiver(mBroadcastReceiver, filter);
 
         ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_SLIDE_SHOW);
-
+        ((MainActivity)act).startLeanback();
     }
 
     @Override
@@ -170,17 +175,22 @@ public class ViewerFragment extends Fragment implements ViewPager.PageTransforme
         if (mFlipping)
             stopFlipping();
 
-        final Context context = getActivity();
-        if (context != null) {
-            context.unregisterReceiver(mBroadcastReceiver);
-        }
+        final Activity act = getActivity();
+        if (act == null)
+            return;
+
+        act.unregisterReceiver(mBroadcastReceiver);
+        ((MainActivity)act).endLeanback();
     }
 
     @Override
     public void onSaveInstanceState(final Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putSerializable("query", mAdapter.getQuery());
-        outState.putInt("position", mPager.getCurrentItem());
+        if (mAdapter != null)
+            outState.putSerializable("query", mAdapter.getQuery());
+
+        if (mPager != null)
+            outState.putInt("position", mPager.getCurrentItem());
     }
 
     private void setMenuVisible(final Menu menu, final int id, final boolean visible) {
