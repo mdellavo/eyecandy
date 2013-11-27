@@ -130,7 +130,19 @@ public class MainActivity
     };
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            if (mLeanback)
+                startLeanback();
+            else
+                endLeanback();
+        }
+    }
+
+    @Override
     public void onLeanbackTouch(final MotionEvent event) {
+        // FIXME should just drive this from main with an onleanback listener
         mGestureDetector.onTouchEvent(event);
     }
 
@@ -183,7 +195,7 @@ public class MainActivity
             v.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
                 @Override
                 public void onSystemUiVisibilityChange(final int visibility) {
-                    final boolean isAwake = (visibility & View.SYSTEM_UI_FLAG_LOW_PROFILE) == 0;
+                    final boolean isAwake = (visibility & View.SYSTEM_UI_FLAG_IMMERSIVE) == 0;
 
                     Log.d(TAG, "system ui visibility change: isAwake=%s", isAwake);
 
@@ -202,25 +214,30 @@ public class MainActivity
 
     @TargetApi(11)
     private void hideSystemUi() {
-        final View v = getWindow().getDecorView();
-
         Log.d(TAG, "hide system ui");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            v.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LOW_PROFILE
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE
             );
         }
     }
 
     @TargetApi(11)
     private void showSystemUi() {
-        final View v = getWindow().getDecorView();
-
         Log.d(TAG, "show system ui");
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            v.setSystemUiVisibility(0);
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            );
         }
     }
 

@@ -31,6 +31,8 @@ public class EyeCandyDatabase extends Database {
             "gifs",
             "naturegifs",
             "oldschoolcool",
+            "aww",
+            "perfectloops",
 
             "earthporn",
             "villageporn",

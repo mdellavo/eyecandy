@@ -434,7 +434,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                mAdapter.notifyDataSetChanged();
+                if (mAdapter.getCount() == 0)
+                    mAdapter.notifyDataSetChanged();
             }
         }
     };

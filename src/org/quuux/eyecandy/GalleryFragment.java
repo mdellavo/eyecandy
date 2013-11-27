@@ -530,7 +530,8 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                mThumbnailsAdapter.notifyDataSetChanged();
+                if (mThumbnailsAdapter.getCount() == 0)
+                    mThumbnailsAdapter.notifyDataSetChanged();
             }
 
         }

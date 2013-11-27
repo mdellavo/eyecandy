@@ -647,7 +647,12 @@ public class ViewerFragment
                     Log.e(TAG, "error loading image %s", error, image);
                     onImageError(holder, error);
                 }
-            });
+            }) {
+                @Override
+                public Priority getPriority() {
+                    return Priority.IMMEDIATE;
+                }
+            };
 
 
             send(context, request);
@@ -693,7 +698,12 @@ public class ViewerFragment
                     Log.e(TAG, "error loading movie - " + image, error);
                     onImageError(holder, error);
                 }
-            });
+            }) {
+                @Override
+                public Priority getPriority() {
+                    return Priority.IMMEDIATE;
+                }
+            };
 
             send(context, request);
         }

@@ -2,6 +2,8 @@ package org.quuux.eyecandy;
 
 import android.app.IntentService;
 import android.content.Intent;
+import android.net.Uri;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -12,7 +14,9 @@ import org.quuux.eyecandy.utils.OkHttpStack;
 import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
+import org.quuux.orm.FlushListener;
 import org.quuux.orm.QueryListener;
+import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
 
 import java.util.ArrayList;
@@ -23,7 +27,7 @@ import java.util.Set;
 public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
-    private static final long SCRAPE_INTERVAL = 1000 * 60 * 60 * 2;
+    private static final long SCRAPE_INTERVAL = 0;//1000 * 60 * 60 * 2;
 
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
     public static String EXTRA_SUBREDDIT = "subreddit";
@@ -31,14 +35,19 @@ public class ScrapeService extends IntentService {
     public static final String EXTRA_TASK_COUNT = "task-count";
     public static final String EXTRA_TASK_STATUS = "task-status";
 
-    private RequestQueue mRequestQueue;
-
     private static int sTaskCount = 0;
 
-    private static final Object sLock = new Object();
+    private RequestQueue mRequestQueue;
+    private Session mSession;
 
     public ScrapeService() {
         super(ScrapeService.class.getName());
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mSession = EyeCandyDatabase.getSession(this);
     }
 
     @Override
@@ -48,15 +57,33 @@ public class ScrapeService extends IntentService {
 
         final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
         if (subreddit != null) {
-            scrapeImgur(subreddit);
+            dispatchScrape(subreddit);
         } else {
             scrapeAllSubreddits();
         }
     }
 
+    private void dispatchScrape(final Subreddit subreddit) {
+
+        final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
+        final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
+
+        Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
+
+        if (!doScrape)
+            return;
+
+        scrapeSubreddit(subreddit);
+        sTaskCount++;
+
+        for (int i=0; i<4; i++) {
+            scrapeImgur(subreddit, i);
+            sTaskCount++;
+        }
+    }
+
     private void scrapeAllSubreddits() {
-        final Session session = EyeCandyDatabase.getSession(this);
-        session.query(Subreddit.class).all(new QueryListener<Subreddit>() {
+        mSession.query(Subreddit.class).all(new QueryListener<Subreddit>() {
             @Override
             public void onResult(final List<Subreddit> subreddits) {
 
@@ -65,8 +92,8 @@ public class ScrapeService extends IntentService {
                     return;
                 }
 
-                for (Subreddit subreddit : subreddits) {
-                    scrapeImgur(subreddit);
+                for (final Subreddit subreddit : subreddits) {
+                    dispatchScrape(subreddit);
                 }
 
             }
@@ -74,12 +101,11 @@ public class ScrapeService extends IntentService {
 
     }
 
-    public void onScrapeComplete(final Subreddit subreddit, final boolean status, final int numScraped) {
+    public void onScrapeComplete(final Subreddit subreddit, final boolean status) {
         sTaskCount--;
 
         final Intent intent = new Intent(ACTION_SCRAPE_COMPLETE);
         intent.putExtra(EXTRA_SUBREDDIT, subreddit);
-        intent.putExtra(EXTRA_NUM_SCRAPED, numScraped);
         intent.putExtra(EXTRA_TASK_STATUS, status);
         intent.putExtra(EXTRA_TASK_COUNT, sTaskCount);
         sendBroadcast(intent);
@@ -90,25 +116,132 @@ public class ScrapeService extends IntentService {
     }
 
 
-    private void scrapeImgur(final Subreddit subreddit) {
-
-        final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
-        final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
-
-        Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
-
-        if (!doScrape)
+    private void bulkInsert(final Subreddit subreddit, final List<Image> images) {
+        if (images.size() == 0)
             return;
 
-        sTaskCount++;
+        final Image lastImage = images.get(images.size() - 1);
+        for (final Image image : images) {
+            mSession.query(Image.class).filter("images.url = ?", image.getUrl()).count(new ScalarListener<Long>() {
+                @Override
+                public void onResult(final Long count) {
+                    if (count == 0)
+                        mSession.add(image);
 
-        final String url = String.format("http://imgur.com/r/%s.json", subreddit.getSubreddit());
+                    mSession.commit();
 
-        final Set<String> knownUrls = new HashSet<String>();
+                    if (image.equals(lastImage)) {
+                        mSession.commit(new FlushListener() {
+                            @Override
+                            public void onFlushed() {
+                                onScrapeComplete(subreddit, true);
+                            }
+                        });
+                    }
 
-        final GsonRequest<ImgurImageList> request = new GsonRequest<ImgurImageList>(
-                ImgurImageList.class,
-                Request.Method.GET,
+                }
+            });
+        }
+
+        subreddit.touch();
+        mSession.add(subreddit);
+    }
+
+    private Image buildImage(final Subreddit subreddit, final ImgurImage i) {
+        return Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
+    }
+
+    private Image buildImage(final Subreddit subreddit, final RedditItem i) {
+        return Image.fromImgur(subreddit, i.url, i.title, false); // FIXME
+    }
+
+    private <T> void doScrape(final Class<T> klass, final Subreddit subreddit, final String url, final Response.Listener<T> listener) {
+        final GsonRequest<T> request = new GsonRequest<T>(klass, Request.Method.GET, url, listener, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(final VolleyError error) {
+                Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
+                onScrapeComplete(subreddit, false);
+            }
+        }) {
+
+            @Override
+            public Priority getPriority() {
+                return Priority.LOW;
+            }
+        };
+        mRequestQueue.add(request);
+    }
+
+    class RedditItem {
+        String url;
+        String title;
+        String thumbnail;
+        String subreddit;
+    }
+
+    class RedditListItem {
+        String kind;
+        RedditItem data;
+    }
+
+    class RedditList {
+        List<RedditListItem> children;
+        String modhash;
+        String before, adter;
+
+    }
+
+    class RedditPage {
+        String type;
+        RedditList data;
+    }
+
+    private void scrapeSubreddit(final Subreddit subreddit) {
+        final String url = String.format("http://reddit.com/r/%s.json", subreddit.getSubreddit());
+
+        doScrape(RedditPage.class,
+                subreddit,
+                url,
+                new Response.Listener<RedditPage>() {
+                    @Override
+                    public void onResponse(final RedditPage response) {
+
+                        if (response == null)
+                            return;
+
+                        final List<Image> images = new ArrayList<Image>(response.data.children.size());
+                        for(final RedditListItem i : response.data.children) {
+
+                            final boolean isImage = isImage(i.data.url);
+                            final boolean isImgur = i.data.url.contains("imgur.com");
+                            if (isImage && !isImgur) {
+                                images.add(buildImage(subreddit, i.data));
+                            }
+
+                        }
+
+                        bulkInsert(subreddit, images);
+                    }
+                }
+        );
+
+    }
+
+    private boolean isImage(final String url) {
+        final Uri uri = Uri.parse(url);
+        final String path = uri.getPath().toLowerCase();
+        return ( path.endsWith(".jpg") ||
+                 path.endsWith(".jpeg") ||
+                 path.endsWith(".gif") ||
+                 path.endsWith(".png") );
+
+    }
+
+    private void scrapeImgur(final Subreddit subreddit, final int page) {
+        final String url = String.format("http://imgur.com/r/%s/new/day/page/%d/hit.json", subreddit.getSubreddit(), page);
+
+        doScrape(ImgurImageList.class,
+                subreddit,
                 url,
                 new Response.Listener<ImgurImageList>() {
                     @Override
@@ -117,57 +250,19 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
-                        int count = 0;
-
-                        final Session session = EyeCandyDatabase.getSession(ScrapeService.this);
-
-                        for(final ImgurImage i : response.data) {
-
-                            final Image img =  Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
-                            if (knownUrls.contains(img.getUrl())) {
-                                Log.d(TAG, "skipping %s...", img.getUrl());
-                                continue;
-                            }
-
-                            session.add(img);
-                            count++;
+                        final List<Image> images = new ArrayList<Image>(response.data.size());
+                        for (final ImgurImage i : response.data) {
+                            images.add(buildImage(subreddit, i));
                         }
 
-                        subreddit.touch();
-                        session.add(subreddit);
-
-                        // Prevent dog piling
-                        synchronized (sLock) {
-                            session.commit();
-                        }
-
-                        onScrapeComplete(subreddit, true, count);
-
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(final VolleyError error) {
-                        Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
-                        onScrapeComplete(subreddit, false, 0);
+                        bulkInsert(subreddit, images);
                     }
                 }
         );
+    }
 
-
-        final Session session = EyeCandyDatabase.getSession(this);
-        session.query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).all(new QueryListener<Image>() {
-            @Override
-            public void onResult(final List<Image> images) {
-
-                if (images != null)
-                    for(Image i : images)
-                        knownUrls.add(i.getUrl());
-
-
-                mRequestQueue.add(request);
-            }
-        });
+    private void scrapeImgur(final Subreddit subreddit) {
+        scrapeImgur(subreddit, 0);
     }
 
     private static class ImgurImage {
