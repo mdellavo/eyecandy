@@ -27,7 +27,7 @@ import java.util.Set;
 public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
-    private static final long SCRAPE_INTERVAL = 0;//1000 * 60 * 60 * 2;
+    private static final long SCRAPE_INTERVAL = 1000 * 60 * 60 * 2;
 
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
     public static String EXTRA_SUBREDDIT = "subreddit";

@@ -4,7 +4,7 @@
     <string name="wait">conjouring</string>
     <string name="gallery_select">Select</string>
     <string name="dialog_add_subreddit_title">Add Subreddit</string>
-    <string name="add_subreddit_message">Subreddit to Add (example: earthporn)</string>
+    <string name="add_subreddit_message">Subreddit to Add (eg: earthporn)</string>
     <string name="add_subreddit">Add</string>
     <string name="add">Add</string>
     <string name="cancel">Cancel</string>
@@ -17,4 +17,10 @@
     <string name="starting_scrape">Starting scrape...</string>
     <string name="scrape_complete">Scrape complete</string>
     <string name="error_loading_zoomed_image">Error loading image</string>
+    <string name="open_dialog_title">Complete Action With</string>
+    <string name="open_with">Open</string>
+    <string name="share_with">Share</string>
+    <string name="dialog_open_source">Open as</string>
+    <string name="view_as_gallery">View as Gallery</string>
+    <string name="view_as_slideshow">View as Slide Show</string>
 </resources>

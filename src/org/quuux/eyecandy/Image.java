@@ -18,10 +18,6 @@ import java.util.regex.Pattern;
 @Table(name="images")
 public class Image implements Entity, Serializable {
 
-
-    @Column()
-    private String subreddit;
-
     public enum Status {
         NOT_FETCHED,
         FETCHED,
@@ -62,6 +58,10 @@ public class Image implements Entity, Serializable {
 
     @Column()
     private boolean animated;
+
+    @Column()
+    private String subreddit;
+
 
     protected Image(final Subreddit subreddit, final String url, final String title, final boolean animated, final Status status, final int timesShown) {
         this.subreddit = subreddit.getSubreddit();
@@ -109,7 +109,7 @@ public class Image implements Entity, Serializable {
         final String url = getUrl();
 
         if (url.startsWith("http://i.imgur.com"))
-            return url.replace(".jpg", "t.jpg");
+            return url.replaceAll(".(\\w+)$", "t.$1");
 
         return url;
     }

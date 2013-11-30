@@ -6,9 +6,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
+import android.graphics.Movie;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.Display;
@@ -40,6 +42,7 @@ import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Target;
 
 import org.quuux.eyecandy.utils.ImageUtils;
+import org.quuux.eyecandy.utils.MovieRequest;
 import org.quuux.orm.Database;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Func;
@@ -47,13 +50,14 @@ import org.quuux.orm.Query;
 import org.quuux.orm.Session;
 import org.quuux.orm.util.QueryAdapter;
 
-public class GalleryFragment extends Fragment implements AbsListView.OnScrollListener, OnBackPressedListener {
+public class GalleryFragment extends Fragment implements AbsListView.OnScrollListener, OnBackPressedListener, View.OnLongClickListener {
 
 
     private static final String TAG = Log.buildTag(GalleryFragment.class);
 
     public static interface Listener {
         void showImage(Query query, int position);
+        void openImage(Image image);
     }
 
     public static final int THUMB_SIZE = 100;
@@ -133,10 +137,13 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
         mZoomedImage = (ImageView)rv.findViewById(R.id.zoomed_image);
 
+
         mTitle = (TextView)rv.findViewById(R.id.title);
         ViewHelper.setAlpha(mTitle, 0);
 
         mScrim = rv.findViewById(R.id.scrim);
+        mScrim.setVisibility(View.VISIBLE);
+        ViewHelper.setAlpha(mScrim, 0);
 
         final Session session = EyeCandyDatabase.getSession(getActivity());
         mQuery.orderBy(Func.RANDOM).limit(1).first(new FetchListener<Image>() {
@@ -151,49 +158,6 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         return rv;
     }
 
-    // FIXME factor this out nicely and reuse , maybe base fragment
-    private void setBackground(final ImageView v, final Image image) {
-        final Activity act = getActivity();
-        if (act == null)
-            return;
-
-        final Display display = getActivity().getWindowManager().getDefaultDisplay();
-        int width = display.getWidth();
-        int height = display.getHeight();
-
-        final Response.Listener<Bitmap> listener = new Response.Listener<Bitmap>() {
-            @Override
-            public void onResponse(final Bitmap src) {
-                ImageUtils.blur(act, src, 25, new ImageUtils.Listener() {
-                    @Override
-                    public void complete(final Bitmap bitmap) {
-                        v.setImageBitmap(bitmap);
-                        ViewHelper.setAlpha(v, .4f);
-                    }
-                });
-            }
-        };
-
-        final Response.ErrorListener errorListener = new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(final VolleyError error) {
-                Log.e(TAG, "error loading image for backing - %s", error, image);
-            }
-        };
-
-        final ImageRequest request = new ImageRequest(
-                image.getUrl(),
-                listener,
-                width,
-                height,
-                Bitmap.Config.ARGB_8888,
-                errorListener
-        );
-
-        final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(act);
-        requestQueue.add(request);
-
-    }
 
     @Override
     public void onResume() {
@@ -244,6 +208,59 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         }
 
         return super.onOptionsItemSelected(item);
+    }
+    @Override
+    public boolean onLongClick(final View v) {
+        final Thumbnailholder tag = (Thumbnailholder) mZoomedImage.getTag();
+        if (tag == null)
+            return false;
+
+        mListener.openImage(tag.image);
+        return true;
+    }
+
+    // FIXME factor this out nicely and reuse , maybe base fragment
+    private void setBackground(final ImageView v, final Image image) {
+        final Activity act = getActivity();
+        if (act == null)
+            return;
+
+        final Display display = getActivity().getWindowManager().getDefaultDisplay();
+        int width = display.getWidth();
+        int height = display.getHeight();
+
+        final Response.Listener<Bitmap> listener = new Response.Listener<Bitmap>() {
+            @Override
+            public void onResponse(final Bitmap src) {
+                ImageUtils.blur(act, src, 25, new ImageUtils.Listener() {
+                    @Override
+                    public void complete(final Bitmap bitmap) {
+                        v.setImageBitmap(bitmap);
+                        ViewHelper.setAlpha(v, .4f);
+                    }
+                });
+            }
+        };
+
+        final Response.ErrorListener errorListener = new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(final VolleyError error) {
+                Log.e(TAG, "error loading image for backing - %s", error, image);
+            }
+        };
+
+        final ImageRequest request = new ImageRequest(
+                image.getUrl(),
+                listener,
+                width,
+                height,
+                Bitmap.Config.ARGB_8888,
+                errorListener
+        );
+
+        final RequestQueue requestQueue = EyeCandyVolley.getRequestQueue(act);
+        requestQueue.add(request);
+
     }
 
     @Override
@@ -303,24 +320,85 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         fade(v, 0, 1f);
     }
 
-    private void zoom(final ImageView thumbView) {
+    // FIXME load backing?
+    private void onZoomedImageLoadComplete() {
+        fadeOut(mProgressBar);
+    }
+
+    private void loadZoomedImage(final Thumbnailholder tag, final Rect bounds) {
+        if (tag.image.isAnimated()) {
+
+            final Context context = getActivity();
+            if (context == null)
+                return;
+
+            Log.d(TAG, "loading movie %s", tag.image.getUrl());
+
+            final RequestQueue queue = EyeCandyVolley.getRequestQueue(context);
+
+            final MovieRequest request = new MovieRequest(
+                    tag.image.getUrl(),
+                    new Response.Listener<Movie>() {
+                        @Override
+                        public void onResponse(final Movie response) {
+                            if (response != null) {
+                                final AnimatedImageDrawable drawable =
+                                        new AnimatedImageDrawable(context, response, bounds);
+                                mZoomedImage.setImageDrawable(drawable);
+                                drawable.setVisible(true, true);
+                            }
+
+                            onZoomedImageLoadComplete();
+                        }
+                    },
+                    new Response.ErrorListener() {
+                        @Override
+                        public void onErrorResponse(final VolleyError error) {
+                            Log.e(TAG, "error loading movie", error);
+                            onZoomedImageLoadComplete();
+                        }
+                    }
+            );
+
+            queue.add(request);
+
+        } else {
+
+            mPicasso.load(tag.image.getUrl())
+                    .resize(bounds.width(), bounds.height())
+                    .centerCrop()
+                    .into(mZoomedImage, new Callback() {
+                        @Override
+                        public void onSuccess() {
+                            onZoomedImageLoadComplete();
+                        }
+
+                        @Override
+                        public void onError() {
+                           onZoomedImageLoadComplete();
+                        }
+                    });
+        }
+
+    }
+
+    private void zoom(final Thumbnailholder tag) {
         if (mCurrentAnimator != null) {
             mCurrentAnimator.cancel();
         }
 
-        final Thumbnailholder tag = (Thumbnailholder) thumbView.getTag();
-
-        startZoom(thumbView);
+        startZoom(tag.thumbnail);
 
         mTitle.setText(tag.image.getTitle());
         fadeIn(mTitle);
-        mScrim.setVisibility(View.VISIBLE);
+
+        fadeIn(mScrim);
 
         final Rect startBounds = new Rect();
         final Rect finalBounds = new Rect();
         final Point globalOffset = new Point();
 
-        thumbView.getGlobalVisibleRect(startBounds);
+        tag.thumbnail.getGlobalVisibleRect(startBounds);
 
         mContainer.getGlobalVisibleRect(finalBounds, globalOffset);
         startBounds.offset(-globalOffset.x, -globalOffset.y);
@@ -343,34 +421,18 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
             startBounds.bottom += deltaHeight;
         }
 
-        ViewHelper.setAlpha(thumbView, 0f);
+        ViewHelper.setAlpha(tag.thumbnail, 0f);
 
         mZoomedImage.setTag(tag);
 
         mZoomedImage.setVisibility(View.VISIBLE);
+        mZoomedImage.setImageDrawable(tag.thumbnail.getDrawable());
+        mZoomedImage.setOnLongClickListener(this);
 
         ViewHelper.setPivotX(mZoomedImage, 0);
         ViewHelper.setPivotY(mZoomedImage, 0);
 
-        final int finalWidth = finalBounds.width();
-        final int finalHeight = finalBounds.height();
-
-        mPicasso.load(tag.image.getUrl())
-                .resize(finalWidth, finalHeight)
-                .centerCrop()
-                .placeholder(thumbView.getDrawable())
-                .into(mZoomedImage, new Callback() {
-                    @Override
-                    public void onSuccess() {
-                        fadeOut(mProgressBar);
-                    }
-
-                    @Override
-                    public void onError() {
-                        fadeOut(mProgressBar);
-                        Toast.makeText(getActivity(), R.string.error_loading_zoomed_image, Toast.LENGTH_SHORT);
-                    }
-                });
+        loadZoomedImage(tag, finalBounds);
 
         AnimatorSet set = new AnimatorSet();
         set
@@ -407,7 +469,7 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
                 }
 
                 fadeOut(mTitle);
-                mScrim.setVisibility(View.GONE);
+                fadeOut(mScrim);
 
                 AnimatorSet set = new AnimatorSet();
                 set.play(ObjectAnimator
@@ -426,12 +488,12 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
                 set.addListener(new AnimatorListenerAdapter() {
                     @Override
                     public void onAnimationEnd(Animator animation) {
-                        endZoom(thumbView);
+                        endZoom(tag.thumbnail);
                     }
 
                     @Override
                     public void onAnimationCancel(Animator animation) {
-                        endZoom(thumbView);
+                        endZoom(tag.thumbnail);
                     }
                 });
                 set.start();
@@ -468,28 +530,34 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
     }
 
     static class Thumbnailholder {
+        ImageView thumbnail;
+        View animated;
         Image image;
-        Target callback;
-        int position;
+        Callback callback;
     }
 
     class ThumbnailAdapter extends QueryAdapter<Image> {
 
+        final int mPadding;
+        final int mSize;
+        private final LayoutInflater mInflater;
+
         public ThumbnailAdapter(final Context context, final Query query) {
             super(context, query);
+            mSize = context.getResources().getDimensionPixelSize(R.dimen.source_thumbnail);
+            mPadding = context.getResources().getDimensionPixelSize(R.dimen.thumbnail_padding);
+            mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         }
 
         @Override
         protected View newView(final Context context, final Image item, final ViewGroup parent) {
-            final ImageView v = new ImageView(context);
-            v.setImageResource(R.drawable.placeholder);
 
-            final int size = context.getResources().getDimensionPixelSize(R.dimen.source_thumbnail);
+            final View v = mInflater.inflate(R.layout.thumbnail, parent, false);
 
-            v.setLayoutParams(new GridView.LayoutParams(size, size));
-            v.setScaleType(ImageView.ScaleType.CENTER_CROP);
-
-            v.setTag(new Thumbnailholder());
+            final Thumbnailholder holder = new Thumbnailholder();
+            holder.thumbnail = (ImageView) v.findViewById(R.id.thumbnail);
+            holder.animated = v.findViewById(R.id.animated);
+            v.setTag(holder);
 
             return v;
         }
@@ -497,26 +565,32 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         @Override
         protected void bindView(final Context context, final Image item, final View view, final ViewGroup parent) {
 
-
-
             Log.d(TAG, "binding item %s (%s)", item.getUrl(), item.getThumbnailUrl());
 
-            Thumbnailholder tag = (Thumbnailholder) view.getTag();
-
+            final Thumbnailholder tag = (Thumbnailholder) view.getTag();
             tag.image = item;
+            tag.animated.setVisibility(View.GONE);
+            tag.callback = new Callback() {
+                @Override
+                public void onSuccess() {
+                    tag.animated.setVisibility(item.isAnimated() ? View.VISIBLE : View.GONE);
+                }
 
-            final ImageView image = (ImageView)view;
+                @Override
+                public void onError() {
+                }
+            };
 
             mPicasso.load(item.getThumbnailUrl())
                     .centerCrop()
-                    .placeholder(R.drawable.placeholder)
-                    .resize(THUMB_SIZE, THUMB_SIZE)
-                    .into(image);
+                    .placeholder(R.drawable.ic_loading)
+                    .resize(mSize, mSize)
+                    .into(tag.thumbnail, tag.callback);
 
-            image.setOnClickListener(new View.OnClickListener() {
+            tag.thumbnail.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(final View view) {
-                    zoom((ImageView) view);
+                    zoom(tag);
                 }
             });
         }

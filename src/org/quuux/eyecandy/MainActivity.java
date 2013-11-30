@@ -1,13 +1,26 @@
 package org.quuux.eyecandy;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
@@ -15,10 +28,17 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.view.*;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.Query;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity
         extends ActionBarActivity
@@ -28,7 +48,6 @@ public class MainActivity
                    GalleryFragment.Listener,
                    SourcesFragment.Listener {
 
-
     private static final String TAG = "MainActivity";
 
     private static final String FRAG_RANDOM = "random";
@@ -37,9 +56,10 @@ public class MainActivity
     private static final String FRAG_SOURCES = "subreddits";
 
     public static final int MODE_SLIDE_SHOW = 0;
-    public static final int MODE_BURNS = 1;
-    public static final int MODE_SOURCES = 2;
-    public static final int MODE_GALLERY = 3;
+    public static final int MODE_SOURCES = 1;
+    public static final int MODE_GALLERY = 2;
+
+    public static final int MODE_BURNS = -1;
 
     final private Handler mHandler = new Handler();
 
@@ -61,7 +81,12 @@ public class MainActivity
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
         actionBar.setDisplayShowTitleEnabled(false);
 
-        final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.modes, android.R.layout.simple_spinner_dropdown_item);
+        final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.modes,
+                android.R.layout.simple_spinner_dropdown_item
+        );
+
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
         actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
@@ -73,7 +98,6 @@ public class MainActivity
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                //Toast.makeText(MainActivity.this, R.string.starting_scrape, Toast.LENGTH_SHORT).show();
                 final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
                 startService(intent);
             }
@@ -136,7 +160,7 @@ public class MainActivity
             if (mLeanback)
                 startLeanback();
             else
-                endLeanback();
+                exitLeanback();
         }
     }
 
@@ -235,9 +259,16 @@ public class MainActivity
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             );
+        }
+    }
+
+    @TargetApi(11)
+    private void restoreSystemUi() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            getWindow().getDecorView().setSystemUiVisibility(0);
         }
     }
 
@@ -256,6 +287,12 @@ public class MainActivity
         showSystemUi();
     }
 
+    public void exitLeanback() {
+        Log.d(TAG, "exiting leanback");
+        endLeanback();
+        restoreSystemUi();
+    }
+
     public boolean isLeanback() {
         return mLeanback;
     }
@@ -272,6 +309,7 @@ public class MainActivity
     }
 
     private void swapFrag(final Fragment fragment, final String tag, final boolean addToBackStack) {
+        restoreSystemUi();
         final FragmentManager frags = getSupportFragmentManager();
         final FragmentTransaction ft = frags.beginTransaction();
         ft.setTransition(FragmentTransaction.TRANSIT_ENTER_MASK);
@@ -306,6 +344,7 @@ public class MainActivity
         swapFrag(frag, FRAG_VIEWER, addToBackStack);
     }
 
+
     public void showImage(final Query query, final int position) {
         showImage(query, position, true);
     }
@@ -319,6 +358,12 @@ public class MainActivity
         showImage(q, 0, false);
     }
 
+    public void showImage(final Subreddit subreddit) {
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
+        showImage(q, 0);
+    }
+
+
     public void showGallery(final Query query, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
         if (frag == null)
@@ -328,6 +373,11 @@ public class MainActivity
 
     public void showGallery(final Query query) {
         showGallery(query, true);
+    }
+
+    public void showGallery(final Subreddit subreddit) {
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
+        showGallery(q);
     }
 
     private void onShowGallery() {
@@ -349,6 +399,151 @@ public class MainActivity
         ab.setSelectedNavigationItem(pos);
     }
 
+    public void openImage(final Image image) {
+        final OpenImageDialog dialog = OpenImageDialog.newInstance(image);
+        dialog.show(getSupportFragmentManager(), String.format("open-image-%s", image.getId()));
+    }
+
+    static class ImageOpenerAdapter extends ArrayAdapter<ResolveInfo> {
+
+        public ImageOpenerAdapter(final Context context, final Image image) {
+            super(context, 0);
+            init(context, image);
+        }
+
+        private void init(final Context context, final Image image) {
+            final PackageManager manager = context.getPackageManager();
+
+            final Intent viewIntent = buildViewIntent(image);
+            final List<ResolveInfo> viewActivites = queryActvities(manager, viewIntent);
+            for (final ResolveInfo i : viewActivites) {
+                Log.d(TAG, "adding match - %s", i);
+                add(i);
+            }
+
+            final Intent shareIntent = buildShareIntent(image);
+            final List<ResolveInfo> shareActivites = queryActvities(manager, shareIntent);
+            for (final ResolveInfo i : shareActivites) {
+                Log.d(TAG, "adding match - %s", i);
+                add(i);
+            }
+
+        }
+
+        private Intent buildShareIntent(final Image image) {
+            final Intent intent = new Intent();
+            intent.setAction(Intent.ACTION_SEND);
+            final String text = String.format("%s - %s", image.getTitle(), image.getUrl());
+            intent.putExtra(Intent.EXTRA_TEXT, text);
+            intent.setType("text/plain");
+            return intent;
+        }
+
+        private Intent buildViewIntent(final Image image) {
+            final Intent intent = new Intent();
+            intent.setAction(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse(image.getUrl()));
+            return intent;
+        }
+
+
+        private List<ResolveInfo> queryActvities(final PackageManager manager, final Intent intent) {
+            return manager.queryIntentActivities(
+                    intent,
+                    PackageManager.GET_INTENT_FILTERS | PackageManager.GET_RESOLVED_FILTER
+            );
+        }
+
+        @Override
+        public View getView(final int position, final View convertView, final ViewGroup parent) {
+
+            final PackageManager pm = getContext().getPackageManager();
+            final ResolveInfo info = getItem(position);
+
+            View v = convertView;
+            if (v == null) {
+                final LayoutInflater inflater = (LayoutInflater) getContext().getSystemService(LAYOUT_INFLATER_SERVICE);
+                v = inflater.inflate(R.layout.open_image_item, parent, false);
+            }
+
+            final TextView header = (TextView)v.findViewById(R.id.header);
+
+            final ResolveInfo prev = (position > 1 && position <= getCount() - 1) ? getItem(position - 1) : null;
+
+            if (position == 0) {
+                header.setVisibility(View.VISIBLE);
+                header.setText(R.string.open_with);
+            } else if (prev != null && prev.filter.hasAction(Intent.ACTION_VIEW) && info.filter.hasAction(Intent.ACTION_SEND)) {
+                header.setVisibility(View.VISIBLE);
+                header.setText(R.string.share_with);
+            } else {
+                header.setVisibility(View.GONE);
+            }
+
+            final ImageView icon = (ImageView) v.findViewById(R.id.icon);
+            icon.setImageDrawable(info.loadIcon(pm));
+
+            final TextView label = (TextView) v.findViewById(R.id.label);
+            label.setText(info.loadLabel(pm));
+
+            return v;
+        }
+    }
+
+    public static class OpenImageDialog extends DialogFragment {
+        public OpenImageDialog() {
+            super();
+        }
+
+        public static OpenImageDialog newInstance(final Image image) {
+            final OpenImageDialog rv = new OpenImageDialog();
+            final Bundle args = new Bundle();
+            args.putSerializable("image", image);
+            rv.setArguments(args);
+            return rv;
+        }
+
+        private Image getImage() {
+            return (Image) getArguments().getSerializable("image");
+        }
+
+        @Override
+        public Dialog onCreateDialog(final Bundle savedInstanceState) {
+
+            final Activity act = getActivity();
+
+            final AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(act, android.R.style.Theme_Holo_Light));
+            builder.setTitle(R.string.open_dialog_title);
+
+            final ImageOpenerAdapter adapter = new ImageOpenerAdapter(act, getImage());
+
+            builder.setAdapter(
+                    adapter,
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(final DialogInterface dialog, final int which) {
+                            final ResolveInfo info = adapter.getItem(which);
+
+                            final Intent i;
+                            if (info.filter.hasAction(Intent.ACTION_VIEW)) {
+                                i = adapter.buildViewIntent(getImage());
+                            } else if (info.filter.hasAction(Intent.ACTION_SEND)) {
+                                i = adapter.buildShareIntent(getImage());
+                            } else {
+                                i = null;
+                                return;
+                            }
+
+                            i.setClassName(info.activityInfo.applicationInfo.packageName, info.activityInfo.name);
+                            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+
+                            startActivity(i);
+                        }
+                    });
+
+            return builder.create();
+        }
+    }
 
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 

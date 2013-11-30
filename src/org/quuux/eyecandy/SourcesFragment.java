@@ -17,6 +17,7 @@ import android.support.v4.app.Fragment;
 
 import android.text.TextUtils;
 import android.view.ContextMenu;
+import android.view.ContextThemeWrapper;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -53,8 +54,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
     private static final String TAG = Log.buildTag(SourcesFragment.class);
 
     public interface Listener {
-        void showImage(Query query);
-        void showGallery(Query query);
+        void showImage(Subreddit subreddit);
+        void showGallery(Subreddit subreddit);
     }
 
     private Listener mListener;
@@ -152,8 +153,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             return;
 
         final Display display = getActivity().getWindowManager().getDefaultDisplay();
-        int width = display.getWidth();
-        int height = display.getHeight();
+        final int width = display.getWidth();
+        final int height = display.getHeight();
 
         final Response.Listener<Bitmap> listener = new Response.Listener<Bitmap>() {
             @Override
@@ -205,8 +206,13 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         final boolean rv;
         switch(item.getItemId()) {
 
-            case R.id.view:
-                openSubreddit(subreddit);
+            case R.id.slideshow:
+                mListener.showImage(subreddit);
+                rv = true;
+                break;
+
+            case R.id.gallery:
+                mListener.showGallery(subreddit);
                 rv = true;
                 break;
 
@@ -255,7 +261,9 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
     @Override
     public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
         final Subreddit subreddit = (Subreddit) mAdapter.getItem(position);
-        openSubreddit(subreddit);
+        final OpenDialog dialog = OpenDialog.newInstance(subreddit);
+        dialog.show(getActivity().getSupportFragmentManager(), "open-source-" + subreddit.getSubreddit());
+
     }
 
     private void openSubreddit(final Subreddit subreddit) {
@@ -263,9 +271,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         if (context == null)
             return;
 
-        final Session session = EyeCandyDatabase.getSession(context);
-        final Query query = session.query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
-        mListener.showGallery(query);
+        mListener.showGallery(subreddit);
     }
 
     private void showAddDialog() {
@@ -393,7 +399,66 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         
     }
 
-    private class AddSubredditDialog extends DialogFragment {
+    public static class OpenDialog extends DialogFragment {
+
+        static final int MODE_SLIDESHOW = 0;
+        static final int MODE_GALLERY = 1;
+        private Listener mListener;
+
+        @Override
+        public void onAttach(final Activity activity) {
+            super.onAttach(activity);
+
+            if (!(activity instanceof Listener)) {
+                throw new IllegalArgumentException("Activity must implement Listener");
+            }
+
+            mListener = (Listener) activity;
+        }
+
+        @Override
+        public Dialog onCreateDialog(final Bundle savedInstanceState) {
+
+            final Context context = getActivity();
+
+            final AlertDialog.Builder builder =  new AlertDialog.Builder(new ContextThemeWrapper(context, android.R.style.Theme_Holo_Light));
+            builder.setTitle(R.string.dialog_open_source);
+
+            final String[] items = context.getResources().getStringArray(R.array.open_items);
+
+            builder.setItems(items, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(final DialogInterface dialog, final int which) {
+
+                    final Subreddit subreddit = (Subreddit) getArguments().getSerializable("subreddit");
+
+                    switch(which) {
+
+                        case MODE_SLIDESHOW:
+                             mListener.showImage(subreddit);
+                            break;
+
+                        case MODE_GALLERY:
+                            mListener.showGallery(subreddit);
+                            break;
+                    }
+                }
+            });
+
+            return builder.create();
+        }
+
+        public static OpenDialog newInstance(final Subreddit subreddit) {
+            final OpenDialog rv = new OpenDialog();
+            final Bundle args = new Bundle();
+            args.putSerializable("subreddit", subreddit);
+            rv.setArguments(args);
+            return rv;
+        }
+    }
+
+    // FIXME needs to be static
+    public class AddSubredditDialog extends DialogFragment {
 
         EditText mEditTextSubreddit;
 
@@ -402,7 +467,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
             final Context context = getActivity();
 
-            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+
+            final AlertDialog.Builder builder =  new AlertDialog.Builder(new ContextThemeWrapper(context, android.R.style.Theme_Holo_Light));
             builder.setTitle(R.string.dialog_add_subreddit_title);
 
             final LayoutInflater inflater =

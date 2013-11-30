@@ -63,18 +63,20 @@ public class ViewerFragment
         extends Fragment
         implements ViewPager.PageTransformer,
                    ViewPager.OnPageChangeListener,
-                   View.OnTouchListener {
+                   View.OnTouchListener, View.OnLongClickListener {
 
     public interface Listener {
         void startLeanback();
         void endLeanback();
+        void exitLeanback();
         boolean isLeanback();
         void setSelectedNavigationItemSilent(int pos);
-        void onLeanbackTouch(final MotionEvent ev);
+        void onLeanbackTouch(MotionEvent ev);
+        void openImage(Image image);
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
-    private static final long FLIP_DELAY = 15 * 1000;
+    private static final long FLIP_DELAY = 5 * 1000;
     private Adapter mAdapter;
     private ViewPager mPager;
     private boolean mFlipping;
@@ -150,6 +152,8 @@ public class ViewerFragment
         mPager.setAdapter(mAdapter);
         mPager.setOnPageChangeListener(this);
 
+        mPager.setOnLongClickListener(this);
+
         return rv;
     }
 
@@ -205,7 +209,7 @@ public class ViewerFragment
             return;
 
         act.unregisterReceiver(mBroadcastReceiver);
-        mListener.endLeanback();
+        mListener.exitLeanback();
     }
 
     @Override
@@ -298,8 +302,26 @@ public class ViewerFragment
     }
 
     @Override
-    public void onPageScrolled(final int i, final float v, final int i2) {
+    public boolean onLongClick(final View v) {
 
+        final View cur = mPager.findViewWithTag(mPager.getCurrentItem());
+        if (cur == null)
+            return false;
+
+
+        final Image image = (Image) cur.getTag(R.id.image);
+        if (image == null)
+            return false;
+
+        mListener.openImage(image);
+
+        return true;
+    }
+
+    @Override
+    public void onPageScrolled(final int position, final float positionOffset, final int positionOffsetPixels) {
+        Log.d(TAG, "onPageScrolled(position = %s | positionOffset = %s | positionOffsetPixels = %s)",
+                position, positionOffset, positionOffsetPixels);
     }
 
     @Override
@@ -314,8 +336,12 @@ public class ViewerFragment
         if (holder == null)
             return;
 
+        final Image image = (Image) v.getTag(R.id.image);
+
         if (holder.imageFailed) {
-            Log.d(TAG, "selected a failed image, skipping...");
+            Log.d(TAG, "selected a failed image %s, skipping...",
+                    image != null ? image.getUrl() : "(null)");
+
             flipImage();
         } else if (mFlipping && holder.imageLoaded) {
             Log.d(TAG, "image loaded and selected, scheduling flip");
@@ -324,9 +350,10 @@ public class ViewerFragment
     }
 
     @Override
-    public void onPageScrollStateChanged(final int i) {
+    public void onPageScrollStateChanged(final int state) {
 
     }
+
 
     private void toggleTitle() {
         final View cur = mPager.findViewWithTag(mPager.getCurrentItem());
@@ -568,8 +595,8 @@ public class ViewerFragment
             rv.setTag(position);
             rv.setTag(R.id.holder, holder);
 
-
             rv.setOnTouchListener(getFrag());
+            rv.setOnLongClickListener(getFrag());
 
             loadItem(position, new FetchListener<Image>() {
                 @Override
@@ -578,22 +605,7 @@ public class ViewerFragment
                     if (image == null)
                         return;
 
-                    rv.setOnLongClickListener(new View.OnLongClickListener() {
-                        @Override
-                        public boolean onLongClick(final View v) {
-
-                            final Holder holder = (Holder) v.getTag(R.id.holder);
-                            if (holder != null) {
-                                Uri uri = Uri.parse(image.getUrl());
-                                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                                Intent intentChooser = Intent.createChooser(intent, "Open Image");
-                                context.startActivity(intentChooser);
-                                return true;
-                            }
-
-                            return false;
-                        }
-                    });
+                    rv.setTag(R.id.image, image);
 
                     holder.title.setText(image.getTitle());
                     holder.title.setVisibility(View.VISIBLE);
@@ -712,8 +724,6 @@ public class ViewerFragment
         public void destroyItem(final ViewGroup container, final int position, final Object object) {
             final View view = (View)object;
             final Holder holder = (Holder) view.getTag(R.id.holder);
-
-            view.setOnClickListener(null);
 
             if (holder.bitmap != null) {
                 Log.d(TAG, "recycling bitmap");

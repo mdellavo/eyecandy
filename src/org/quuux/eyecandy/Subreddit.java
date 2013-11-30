@@ -1,10 +1,12 @@
 package org.quuux.eyecandy;
 
+import org.quuux.eyecandy.utils.RandomGenerator;
 import org.quuux.orm.Column;
 import org.quuux.orm.Entity;
 import org.quuux.orm.Table;
 
 import java.io.Serializable;
+
 
 @Table(name="subreddits")
 public class Subreddit implements Entity, Serializable {
@@ -37,7 +39,7 @@ public class Subreddit implements Entity, Serializable {
     }
 
     public void touch() {
-        setLastScrape(System.currentTimeMillis());
+        setLastScrape(System.currentTimeMillis() + RandomGenerator.get().randomInt(0, 1000 * 60 * 5));
     }
 
 }

@@ -36,9 +36,10 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
 
         mHandler = new Handler(context.getMainLooper());
 
-        mBitmap = Bitmap.createBitmap(mMovie.width(), mMovie.height(),
-                Bitmap.Config.ARGB_8888);
+        final int width = mMovie.width() > 0 ? mMovie.width() : dest.width();
+        final int height = mMovie.height() > 0 ? mMovie.height() : dest.height();
 
+        mBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         mCanvas = new Canvas(mBitmap);
         setCallback(this);
     }

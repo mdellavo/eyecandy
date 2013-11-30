@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -13,10 +12,12 @@
 
 
     <GridView
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:layout_gravity="center"
         android:paddingTop="?attr/actionBarSize"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"
         android:id="@+id/grid"
         android:columnWidth="@dimen/source_thumbnail"
         android:numColumns="auto_fit"
@@ -36,8 +37,11 @@
         android:layout_height="match_parent"
         android:layout_width="match_parent"
         android:layout_gravity="center"
-        android:adjustViewBounds="true"
-        android:padding="75dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentTop="true"
+        android:paddingTop="?attr/actionBarSize"
+        android:scaleType="fitCenter"
+        android:padding="25dp"
         android:id="@+id/zoomed_image"/>
 
     <ProgressBar
@@ -45,29 +49,23 @@
         android:layout_gravity="center"
         android:indeterminate="true"
         android:visibility="gone"
+        android:layout_centerInParent="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         />
 
-    <RelativeLayout
-        android:layout_height="match_parent"
-        android:layout_width="match_parent">
+    <TextView
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:layout_gravity="center"
+        android:layout_alignParentBottom="true"
+        android:padding="5dp"
+        android:gravity="center"
+        android:textSize="24sp"
+        android:shadowColor="#000"
+        android:shadowRadius="5"
+        android:shadowDx="3"
+        android:shadowDy="4"
+        android:id="@+id/title"/>
 
-        <TextView
-            android:layout_height="wrap_content"
-            android:layout_width="match_parent"
-            android:layout_alignParentBottom="true"
-            android:background="#88000000"
-            android:padding="5dp"
-            android:gravity="center"
-            android:textSize="24sp"
-            android:shadowColor="#333"
-            android:shadowRadius="10"
-            android:shadowDx="0"
-            android:shadowDy="0"
-            android:id="@+id/title"/>
-
-
-    </RelativeLayout>
-
-</FrameLayout>
+w</RelativeLayout>
