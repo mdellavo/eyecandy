@@ -23,4 +23,5 @@
     <string name="dialog_open_source">Open as</string>
     <string name="view_as_gallery">View as Gallery</string>
     <string name="view_as_slideshow">View as Slide Show</string>
+    <string name="nag_title">Welcome to Eye Candy</string>
 </resources>

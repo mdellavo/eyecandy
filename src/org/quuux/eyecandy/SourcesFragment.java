@@ -421,7 +421,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
             final Context context = getActivity();
 
-            final AlertDialog.Builder builder =  new AlertDialog.Builder(new ContextThemeWrapper(context, android.R.style.Theme_Holo_Light));
+            final AlertDialog.Builder builder =  new AlertDialog.Builder(context);
             builder.setTitle(R.string.dialog_open_source);
 
             final String[] items = context.getResources().getStringArray(R.array.open_items);
@@ -468,7 +468,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             final Context context = getActivity();
 
 
-            final AlertDialog.Builder builder =  new AlertDialog.Builder(new ContextThemeWrapper(context, android.R.style.Theme_Holo_Light));
+            final AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(R.string.dialog_add_subreddit_title);
 
             final LayoutInflater inflater =
@@ -505,4 +505,5 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             }
         }
     };
+
 }

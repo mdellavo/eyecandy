@@ -71,7 +71,7 @@ public class ViewerFragment
         void exitLeanback();
         boolean isLeanback();
         void setSelectedNavigationItemSilent(int pos);
-        void onLeanbackTouch(MotionEvent ev);
+        boolean onLeanbackTouch(MotionEvent ev);
         void openImage(Image image);
     }
 
@@ -296,9 +296,10 @@ public class ViewerFragment
 
     @Override
     public boolean onTouch(final View v, final MotionEvent event) {
-        mListener.onLeanbackTouch(event);
-        mGestureDetector.onTouchEvent(event);
-        return false;
+        boolean rv = false;
+        rv |= mListener.onLeanbackTouch(event);
+        rv |= mGestureDetector.onTouchEvent(event);
+        return rv;
     }
 
     @Override
@@ -585,7 +586,7 @@ public class ViewerFragment
             container.addView(rv);
 
             final Holder holder = new Holder();
-            holder.duration = context.getResources().getInteger(android.R.integer.config_shortAnimTime);
+            holder.duration = context.getResources().getInteger(android.R.integer.config_shortAnimTime) * 4;
             holder.position = position;
             holder.backing = (ImageView) rv.findViewById(R.id.backing);
             holder.image = (ImageView) rv.findViewById(R.id.image);

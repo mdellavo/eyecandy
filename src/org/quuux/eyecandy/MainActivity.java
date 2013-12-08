@@ -32,6 +32,13 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdListener;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.nineoldandroids.animation.ObjectAnimator;
+import com.nineoldandroids.view.*;
+import com.nineoldandroids.view.ViewPropertyAnimator;
+
 import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.Query;
 
@@ -63,6 +70,8 @@ public class MainActivity
 
     final private Handler mHandler = new Handler();
 
+    private AdView mAdView;
+
     private GestureDetector mGestureDetector;
     private boolean mSquealch;
     private boolean mLeanback;
@@ -90,6 +99,14 @@ public class MainActivity
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
         actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
+
+        mAdView = (AdView) findViewById(R.id.ad);
+        mAdView.setAdListener(mAdListener);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
+
+        final NagDialog dialog = NagDialog.newInstance();
+        dialog.show(getSupportFragmentManager(), "nag");
 
         mGestureDetector = new GestureDetector(this, mGestureListener);
 
@@ -165,9 +182,9 @@ public class MainActivity
     }
 
     @Override
-    public void onLeanbackTouch(final MotionEvent event) {
+    public boolean onLeanbackTouch(final MotionEvent event) {
         // FIXME should just drive this from main with an onleanback listener
-        mGestureDetector.onTouchEvent(event);
+        return mGestureDetector.onTouchEvent(event);
     }
 
     @Override
@@ -219,17 +236,17 @@ public class MainActivity
             v.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
                 @Override
                 public void onSystemUiVisibilityChange(final int visibility) {
-                    final boolean isAwake = (visibility & View.SYSTEM_UI_FLAG_IMMERSIVE) == 0;
+                    final boolean isAwake = (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0;
 
                     Log.d(TAG, "system ui visibility change: isAwake=%s", isAwake);
 
                     if (isAwake) {
                         getSupportActionBar().show();
-                        mLeanback = false;
                     } else {
                         getSupportActionBar().hide();
                     }
 
+                    slideAd();
 
                 }
             });
@@ -291,6 +308,7 @@ public class MainActivity
         Log.d(TAG, "exiting leanback");
         endLeanback();
         restoreSystemUi();
+        slideAd();
     }
 
     public boolean isLeanback() {
@@ -304,12 +322,41 @@ public class MainActivity
             startLeanback();
     }
 
+    @TargetApi(11)
+    private void slideAd() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+
+            final int visibility = getWindow().getDecorView().getSystemUiVisibility();
+            final boolean isFloating =
+                    (View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION & visibility) != 0 &&
+                            (View.SYSTEM_UI_FLAG_HIDE_NAVIGATION & visibility) == 0;
+
+            final int duration = getResources().getInteger(android.R.integer.config_shortAnimTime);
+            final int translationY = (int) ViewHelper.getTranslationY(mAdView);
+            final int dy = getResources().getDimensionPixelSize(R.dimen.abc_action_bar_default_height);
+
+            Log.d(TAG, "slide: leanback=%s | isFloating=%s | translationY=%s | dy=%s", mLeanback, isFloating, translationY, dy);
+
+            final int px;
+            if (!isFloating) {
+                px = 0;
+            } else {
+                px = -dy;
+            }
+
+            ViewPropertyAnimator.animate(mAdView).translationY(px).setDuration(duration).start();
+        }
+    }
+
     private Fragment getCurrentFragment() {
         return getSupportFragmentManager().findFragmentById(R.id.root);
     }
 
     private void swapFrag(final Fragment fragment, final String tag, final boolean addToBackStack) {
-        restoreSystemUi();
+        if (mLeanback)
+            exitLeanback();
+
         final FragmentManager frags = getSupportFragmentManager();
         final FragmentTransaction ft = frags.beginTransaction();
         ft.setTransition(FragmentTransaction.TRANSIT_ENTER_MASK);
@@ -583,5 +630,61 @@ public class MainActivity
         }
 
     };
+
+    private AdListener mAdListener = new AdListener() {
+        @Override
+        public void onAdClosed() {
+            super.onAdClosed();
+            Log.d(TAG, "ad closed");
+        }
+
+        @Override
+        public void onAdFailedToLoad(final int errorCode) {
+            super.onAdFailedToLoad(errorCode);
+            Log.d(TAG, "ad failed to load: %s", errorCode);
+        }
+
+        @Override
+        public void onAdLeftApplication() {
+            super.onAdLeftApplication();
+            Log.d(TAG, "ad left application");
+        }
+
+        @Override
+        public void onAdOpened() {
+            super.onAdOpened();
+            Log.d(TAG, "ad opened");
+        }
+
+        @Override
+        public void onAdLoaded() {
+            super.onAdLoaded();
+            Log.d(TAG, "ad loaded");
+        }
+    };
+
+    private static class NagDialog extends DialogFragment {
+
+        public NagDialog() {
+            super();
+        }
+
+        public static NagDialog newInstance() {
+            final NagDialog rv = new NagDialog();
+            return rv;
+        }
+
+        @Override
+        public Dialog onCreateDialog(final Bundle savedInstanceState) {
+            final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+            builder.setTitle(R.string.nag_title);
+
+            builder.setPositiveButton(android.R.string.ok, null);
+
+            return builder.create();
+        }
+    }
+
 
 }

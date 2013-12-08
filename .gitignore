@@ -4,3 +4,7 @@ local.properties
 build.xml
 out
 .idea
+res/values/billing.xml
+.gradle
+gradle
+build

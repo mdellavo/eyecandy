@@ -1,0 +1,6 @@
+rootProject.name = 'eyecandy'
+
+include 'orm-android'
+
+project(':orm-android').projectDir = new File(settingsDir, '../orm-android')
+project(':orm-android').buildFileName = 'build.gradle'

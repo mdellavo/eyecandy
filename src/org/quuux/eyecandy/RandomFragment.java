@@ -34,7 +34,7 @@ public class RandomFragment extends Fragment implements View.OnTouchListener {
         void endLeanback();
         boolean isLeanback();
         void setSelectedNavigationItemSilent(int pos);
-        void onLeanbackTouch(final MotionEvent ev);
+        boolean onLeanbackTouch(final MotionEvent ev);
     }
 
     private static final String TAG = Log.buildTag(RandomFragment.class);

@@ -145,6 +145,7 @@ public class ScrapeService extends IntentService {
 
         subreddit.touch();
         mSession.add(subreddit);
+        mSession.commit();
     }
 
     private Image buildImage(final Subreddit subreddit, final ImgurImage i) {
