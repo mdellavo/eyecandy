@@ -4,12 +4,15 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.IntentSender;
+import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -17,21 +20,27 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
+import android.text.Html;
 import android.view.*;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
@@ -39,13 +48,18 @@ import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.*;
 import com.nineoldandroids.view.ViewPropertyAnimator;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.Query;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainActivity
         extends ActionBarActivity
@@ -57,6 +71,8 @@ public class MainActivity
 
     private static final String TAG = "MainActivity";
 
+    private static final String ACTION_PURCHASE = "org.quuux.eyecandy.action.PURCHASE";
+
     private static final String FRAG_RANDOM = "random";
     private static final String FRAG_GALLERY = "gallery-%s";
     private static final String FRAG_VIEWER = "viewer-%s";
@@ -67,8 +83,11 @@ public class MainActivity
     public static final int MODE_GALLERY = 2;
 
     public static final int MODE_BURNS = -1;
+    private static final String SKU_UNLOCK = "UNLOCK";
 
     final private Handler mHandler = new Handler();
+
+    private IInAppBillingService mService;
 
     private AdView mAdView;
 
@@ -76,10 +95,15 @@ public class MainActivity
     private boolean mSquealch;
     private boolean mLeanback;
 
+    private static boolean sNagShown;
+
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
+        bindService(new Intent("com.android.vending.billing.InAppBillingService.BIND"),
+                mServiceConn, Context.BIND_AUTO_CREATE);
 
         getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
@@ -102,11 +126,6 @@ public class MainActivity
 
         mAdView = (AdView) findViewById(R.id.ad);
         mAdView.setAdListener(mAdListener);
-        AdRequest adRequest = new AdRequest.Builder().build();
-        mAdView.loadAd(adRequest);
-
-        final NagDialog dialog = NagDialog.newInstance();
-        dialog.show(getSupportFragmentManager(), "nag");
 
         mGestureDetector = new GestureDetector(this, mGestureListener);
 
@@ -120,26 +139,36 @@ public class MainActivity
             }
        }, 500);
 
-        ViewServer.get(this).addWindow(this);
+        if (BuildConfig.DEBUG)
+            ViewServer.get(this).addWindow(this);
 
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        ViewServer.get(this).removeWindow(this);
+
+        if (BuildConfig.DEBUG)
+            ViewServer.get(this).removeWindow(this);
+
+        if (mServiceConn != null) {
+            unbindService(mServiceConn);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        ViewServer.get(this).setFocusedWindow(this);
+
+        if (BuildConfig.DEBUG)
+            ViewServer.get(this).setFocusedWindow(this);
 
         if(mLeanback)
             startLeanback();
 
         final IntentFilter filter = new IntentFilter();
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
+        filter.addAction(ACTION_PURCHASE);
         registerReceiver(mBroadcastReceiver, filter);
     }
 
@@ -147,6 +176,11 @@ public class MainActivity
     protected void onPause() {
         super.onPause();
         unregisterReceiver(mBroadcastReceiver);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
     }
 
     @Override
@@ -158,6 +192,8 @@ public class MainActivity
                 ((OnBackPressedListener) frag).onBackPressed()) {
           return;
         }
+
+        sNagShown = false;
 
         super.onBackPressed();
     }
@@ -179,6 +215,31 @@ public class MainActivity
             else
                 exitLeanback();
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == 1001) {
+            int responseCode = data.getIntExtra("RESPONSE_CODE", 0);
+            String purchaseData = data.getStringExtra("INAPP_PURCHASE_DATA");
+            String dataSignature = data.getStringExtra("INAPP_DATA_SIGNATURE");
+
+            if (resultCode == RESULT_OK) {
+                onPurchaseComplete();
+            }
+        }
+    }
+
+    private void onPurchaseComplete() {
+        mAdView.setVisibility(View.GONE);
+        mAdView.destroy();
+
+        final FragmentManager fm = getSupportFragmentManager();
+        final NagDialog nag = (NagDialog) fm.findFragmentByTag("nag");
+        if (nag != null) {
+            nag.dismiss();
+        }
+
     }
 
     @Override
@@ -451,6 +512,30 @@ public class MainActivity
         dialog.show(getSupportFragmentManager(), String.format("open-image-%s", image.getId()));
     }
 
+    private void onPurchaseResult(final Set<String> purchases) {
+        if (purchases == null || !purchases.contains(SKU_UNLOCK)) {
+            showNag();
+            loadAds();
+        }
+    }
+
+    private void loadAds() {
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
+        mAdView.setVisibility(View.VISIBLE);
+    }
+
+    private void showNag() {
+        if (!sNagShown) {
+            final FragmentManager fm = getSupportFragmentManager();
+            if (fm.findFragmentByTag("nag") == null) {
+                final NagDialog dialog = NagDialog.newInstance();
+                dialog.show(getSupportFragmentManager(), "nag");
+            }
+            sNagShown = true;
+        }
+    }
+
     static class ImageOpenerAdapter extends ArrayAdapter<ResolveInfo> {
 
         public ImageOpenerAdapter(final Context context, final Image image) {
@@ -602,10 +687,37 @@ public class MainActivity
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
                 final int taskCount = intent.getIntExtra(ScrapeService.EXTRA_TASK_COUNT, -1);
                 Log.d(TAG, "scrape complete, task count = %s", taskCount);
+            } else if (ACTION_PURCHASE.equals(action)) {
+                startPurchase();
             }
 
         }
     };
+
+    private void startPurchase() {
+        final Bundle response;
+        try {
+            response = mService.getBuyIntent(3, getPackageName(), SKU_UNLOCK, "inapp", null);
+        } catch (final RemoteException e) {
+            Log.e(TAG, "error starting purchase", e);
+            return;
+        }
+
+        final int responseCode = response.getInt("RESPONSE_CODE");
+        if (responseCode != 0) {
+            Log.d(TAG, "error starting purchase: %s", response);
+            return;
+        }
+
+        final PendingIntent pendingIntent = response.getParcelable("BUY_INTENT");
+        try {
+            startIntentSenderForResult(pendingIntent.getIntentSender(),
+                    1001, new Intent(), Integer.valueOf(0), Integer.valueOf(0),
+                    Integer.valueOf(0));
+        } catch (final IntentSender.SendIntentException e) {
+            Log.e(TAG, "error starting purchase: %s", e);
+        }
+    }
 
     final Runnable mTapCallback = new Runnable() {
         @Override
@@ -663,7 +775,7 @@ public class MainActivity
         }
     };
 
-    private static class NagDialog extends DialogFragment {
+    public static class NagDialog extends DialogFragment {
 
         public NagDialog() {
             super();
@@ -676,15 +788,86 @@ public class MainActivity
 
         @Override
         public Dialog onCreateDialog(final Bundle savedInstanceState) {
+            final Context context = getActivity();
+            if (context == null)
+                return null;
+
+            final View v = getActivity().getLayoutInflater().inflate(R.layout.nag, null);
+            if (v == null)
+                return null;
+
+            final TextView nagText = (TextView) v.findViewById(R.id.nag_text);
+            nagText.setText(Html.fromHtml(getString(R.string.nag_text)));
+
+            final Button button = (Button) v.findViewById(R.id.purchase_button);
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(final View v) {
+                    context.sendBroadcast(new Intent(ACTION_PURCHASE));
+                }
+            });
+
             final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
 
-            builder.setTitle(R.string.nag_title);
+            final Dialog dialog = builder.setTitle(R.string.nag_title)
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .setView(v)
+                    .create();
 
-            builder.setPositiveButton(android.R.string.ok, null);
+            dialog.setCancelable(false);
+            dialog.setCanceledOnTouchOutside(false);
 
-            return builder.create();
+            return dialog;
         }
     }
 
+    final ServiceConnection mServiceConn = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(final ComponentName name, final IBinder service) {
+            mService = IInAppBillingService.Stub.asInterface(service);
+            initBilling();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+        }
+
+    };
+
+    private void initBilling() {
+        new QueryPurchasesTask().execute();
+    }
+
+    class QueryPurchasesTask extends AsyncTask<String, Void, Set<String>> {
+
+        @Override
+        protected Set<String> doInBackground(final String... params) {
+            final Bundle purchases;
+            try {
+                purchases = mService.getPurchases(3, getPackageName(), "inapp", null);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+                return null;
+            }
+
+            final int response = purchases.getInt("RESPONSE_CODE");
+            if (response != 0) {
+                Log.e(TAG, "Error querying purchases: %s", purchases);
+                return null;
+            }
+
+            final List<String> purchasedSkus = purchases.getStringArrayList("INAPP_PURCHASE_ITEM_LIST");
+            final Set<String> rv = new HashSet<String>();
+            rv.addAll(purchasedSkus);
+            return rv;
+        }
+
+        @Override
+        protected void onPostExecute(final Set<String> purchases) {
+            onPurchaseResult(purchases);
+        }
+    }
 
 }

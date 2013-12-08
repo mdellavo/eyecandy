@@ -23,10 +23,12 @@ public class EyeCandyDatabase extends Database {
 
     private static EyeCandyDatabase instance = null;
 
+    // TODO
     // http://headlikeanorange.tumblr.com/
+    // http://radar.weather.gov/Conus/Loop/NatLoop.gif
 
     private static final String SUBREDDITS[] = {
-
+            "woahdude",
             "Cinemagraphs",
             "gifs",
             "naturegifs",

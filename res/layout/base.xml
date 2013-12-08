@@ -18,6 +18,7 @@
         android:id="@+id/ad"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
+        android:visibility="gone"
         ads:adSize="SMART_BANNER"
         ads:adUnitId="@string/admob_id"/>
 
