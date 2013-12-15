@@ -8,3 +8,4 @@ res/values/billing.xml
 .gradle
 gradle
 build
+*.keystore

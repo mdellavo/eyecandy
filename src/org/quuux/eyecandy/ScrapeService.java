@@ -15,6 +15,7 @@ import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.FlushListener;
+import org.quuux.orm.FlushTask;
 import org.quuux.orm.QueryListener;
 import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
@@ -23,6 +24,15 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ScrapeService extends IntentService {
 
@@ -38,7 +48,8 @@ public class ScrapeService extends IntentService {
     private static int sTaskCount = 0;
 
     private RequestQueue mRequestQueue;
-    private Session mSession;
+    private BlockingQueue<Object> mQueue = new LinkedBlockingQueue<Object>();
+    private Thread mWriter;
 
     public ScrapeService() {
         super(ScrapeService.class.getName());
@@ -47,7 +58,11 @@ public class ScrapeService extends IntentService {
     @Override
     public void onCreate() {
         super.onCreate();
-        mSession = EyeCandyDatabase.getSession(this);
+
+        mWriter = new Thread(new Writer(mQueue));
+        mWriter.setDaemon(true);
+        mWriter.setPriority(Thread.MIN_PRIORITY);
+        mWriter.start();
     }
 
     @Override
@@ -63,12 +78,17 @@ public class ScrapeService extends IntentService {
         }
     }
 
+    private Session getSession() {
+        return EyeCandyDatabase.getSession(this);
+    }
+
     private void dispatchScrape(final Subreddit subreddit) {
 
         final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
-        final boolean doScrape = timeSinceLastScrape > SCRAPE_INTERVAL;
+        final boolean doScrape = SCRAPE_INTERVAL == 0 || timeSinceLastScrape > SCRAPE_INTERVAL;
 
-        Log.d(TAG, "%s scraped %s seconds ago - %s", subreddit, timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
+        Log.d(TAG, "%s scraped %s seconds ago - %s",
+                subreddit.getSubreddit(), timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
 
         if (!doScrape)
             return;
@@ -83,7 +103,7 @@ public class ScrapeService extends IntentService {
     }
 
     private void scrapeAllSubreddits() {
-        mSession.query(Subreddit.class).all(new QueryListener<Subreddit>() {
+        getSession().query(Subreddit.class).all(new QueryListener<Subreddit>() {
             @Override
             public void onResult(final List<Subreddit> subreddits) {
 
@@ -115,37 +135,21 @@ public class ScrapeService extends IntentService {
         }
     }
 
-
-    private void bulkInsert(final Subreddit subreddit, final List<Image> images) {
-        if (images.size() == 0)
-            return;
-
-        final Image lastImage = images.get(images.size() - 1);
-        for (final Image image : images) {
-            mSession.query(Image.class).filter("images.url = ?", image.getUrl()).count(new ScalarListener<Long>() {
-                @Override
-                public void onResult(final Long count) {
-                    if (count == 0)
-                        mSession.add(image);
-
-                    mSession.commit();
-
-                    if (image.equals(lastImage)) {
-                        mSession.commit(new FlushListener() {
-                            @Override
-                            public void onFlushed() {
-                                onScrapeComplete(subreddit, true);
-                            }
-                        });
-                    }
-
-                }
-            });
+    private void write(final Image i) {
+        try {
+            mQueue.put(i);
+        } catch (final InterruptedException e) {
+            Log.e(TAG, "error putting image on queue", e);
         }
+    }
 
-        subreddit.touch();
-        mSession.add(subreddit);
-        mSession.commit();
+
+    private void touchSubreddit(final Subreddit subreddit) {
+        try {
+            mQueue.put(subreddit);
+        } catch (InterruptedException e) {
+            Log.e(TAG, "error touching subreddit", e);
+        }
     }
 
     private Image buildImage(final Subreddit subreddit, final ImgurImage i) {
@@ -210,18 +214,18 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
-                        final List<Image> images = new ArrayList<Image>(response.data.children.size());
                         for(final RedditListItem i : response.data.children) {
 
                             final boolean isImage = isImage(i.data.url);
                             final boolean isImgur = i.data.url.contains("imgur.com");
                             if (isImage && !isImgur) {
-                                images.add(buildImage(subreddit, i.data));
+                                final Image img = buildImage(subreddit, i.data);
+                                write(img);
                             }
 
                         }
 
-                        bulkInsert(subreddit, images);
+                        touchSubreddit(subreddit);
                     }
                 }
         );
@@ -251,12 +255,12 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
-                        final List<Image> images = new ArrayList<Image>(response.data.size());
                         for (final ImgurImage i : response.data) {
-                            images.add(buildImage(subreddit, i));
+                            final Image img = buildImage(subreddit, i);
+                            write(img);
                         }
 
-                        bulkInsert(subreddit, images);
+                        touchSubreddit(subreddit);
                     }
                 }
         );
@@ -289,4 +293,62 @@ public class ScrapeService extends IntentService {
     private static class ImgurImageList {
         public List<ImgurImage> data = new ArrayList<ImgurImage>();
     }
+
+    class Writer implements Runnable {
+
+        private Session mSession = getSession();
+        private BlockingQueue<Object> mQueue;
+
+        public Writer(final BlockingQueue<Object> queue) {
+            mQueue = queue;
+        }
+
+        @Override
+        public void run() {
+            while (true) {
+                try {
+                    final Object o = mQueue.take();
+
+                    if (o instanceof Subreddit)
+                        consume((Subreddit)o);
+                    else if (o instanceof Image)
+                        consume((Image)o);
+
+                } catch (Exception e) {
+                    Log.e(TAG, "error processing image from queue - ", e);
+                }
+            }
+        }
+
+        private void consume(final Subreddit subreddit) throws ExecutionException, InterruptedException {
+
+            Log.d(TAG, "Touching subreddit %s", subreddit);
+
+            subreddit.touch();
+            mSession.add(subreddit);
+            mSession.commit(new FlushListener() {
+                @Override
+                public void onFlushed() {
+                    // onScrapeComplete(subreddit, true);
+                }
+            }).get();
+        }
+
+        private void consume(final Image image) throws ExecutionException, InterruptedException {
+            final Long count = (Long) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).count(null).get();
+            if (count.longValue() == 0) {
+                insertImage(image);
+            }
+        }
+
+        private void insertImage(final Image i) {
+            mSession.add(i);
+            try {
+                mSession.commit().get();
+            } catch (final Exception e) {
+                Log.e(TAG, "error inserting image %s", i);
+            }
+        }
+    }
+
 }

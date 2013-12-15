@@ -8,6 +8,10 @@ import android.support.v8.renderscript.Element;
 import android.support.v8.renderscript.RenderScript;
 import android.support.v8.renderscript.ScriptIntrinsicBlur;
 
+import org.quuux.eyecandy.Log;
+
+import java.util.concurrent.Executor;
+
 public class ImageUtils {
 
     public interface Listener {
@@ -16,6 +20,7 @@ public class ImageUtils {
 
     static abstract class ImageOp extends AsyncTask<Void, Void, Bitmap> {
 
+        private static final String TAG = Log.buildTag(ImageOp.class);
         private final Listener mListener;
 
         ImageOp(final Listener listener) {
@@ -26,7 +31,13 @@ public class ImageUtils {
 
         @Override
         protected Bitmap doInBackground(final Void... params) {
-            return doImageOp();
+            try {
+                return doImageOp();
+            } catch (final Exception e) {
+                Log.e(TAG, "Error during image op", e);
+            }
+
+            return null;
         }
 
         @Override

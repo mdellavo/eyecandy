@@ -139,7 +139,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         session.query(Image.class).orderBy(Func.RANDOM).limit(1).first(new FetchListener<Image>() {
             @Override
             public void onResult(final Image image) {
-                setBackground((ImageView) rv.findViewById(R.id.backing), image);
+                if (image != null)
+                    setBackground((ImageView) rv.findViewById(R.id.backing), image);
             }
         });
 
@@ -162,8 +163,11 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
                 ImageUtils.blur(act, src, 25, new ImageUtils.Listener() {
                     @Override
                     public void complete(final Bitmap bitmap) {
-                        v.setImageBitmap(bitmap);
-                        ViewHelper.setAlpha(v, .4f);
+
+                        if (bitmap != null) {
+                            v.setImageBitmap(bitmap);
+                            ViewHelper.setAlpha(v, .4f);
+                        }
                     }
                 });
             }

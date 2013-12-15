@@ -758,6 +758,10 @@ public class ViewerFragment
             ImageUtils.blur(context, bitmap, 25, new ImageUtils.Listener() {
                 @Override
                 public void complete(final Bitmap backing) {
+
+                    if (backing == null)
+                        return;
+
                     holder.backing.setVisibility(View.VISIBLE);
                     final long t2 = SystemClock.uptimeMillis();
 

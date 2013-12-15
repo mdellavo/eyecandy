@@ -39,7 +39,7 @@ dependencies {
 }
 
 android {
-    compileSdkVersion 19
+    compileSdkVersion 'Google Inc.:Google APIs:19'
     buildToolsVersion "19.0.0"
 
     sourceSets {
@@ -64,5 +64,37 @@ android {
         // by a similar customization.
         debug.setRoot('build-types/debug')
         release.setRoot('build-types/release')
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('release.keystore')
+            storePassword "xxx"
+            keyAlias "xxx"
+            keyPassword "xxx"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+
+}
+
+task askForPasswords << {
+    def storePw = new String(System.console().readPassword("Keystore password: "))
+    def keyAlias = System.console().readLine("\n\$ Enter key alias: ")
+    def keyPw  = new String(System.console().readPassword("Key password: "))
+
+    android.signingConfigs.release.storePassword = storePw
+    android.signingConfigs.release.keyAlias = keyAlias
+    android.signingConfigs.release.keyPassword = keyPw
+}
+
+tasks.whenTaskAdded { theTask ->
+    if (theTask.name.equals("packageRelease")) {
+        theTask.dependsOn "askForPasswords"
     }
 }

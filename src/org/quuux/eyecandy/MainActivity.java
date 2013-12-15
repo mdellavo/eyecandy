@@ -83,7 +83,7 @@ public class MainActivity
     public static final int MODE_GALLERY = 2;
 
     public static final int MODE_BURNS = -1;
-    private static final String SKU_UNLOCK = "UNLOCK";
+    private static final String SKU_UNLOCK = "unlock";
 
     final private Handler mHandler = new Handler();
 
