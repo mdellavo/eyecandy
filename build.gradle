@@ -1,5 +1,5 @@
 task wrapper(type: Wrapper) {
-    gradleVersion = '1.8'
+    gradleVersion = '1.9'
 }
 
 buildscript {
@@ -8,7 +8,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.6.+'
+        classpath 'com.android.tools.build:gradle:0.7.+'
     }
 }
 
@@ -70,7 +70,7 @@ android {
         release {
             storeFile file('release.keystore')
             storePassword "xxx"
-            keyAlias "xxx"
+            keyAlias "quuux"
             keyPassword "xxx"
         }
     }
@@ -84,13 +84,9 @@ android {
 }
 
 task askForPasswords << {
-    def storePw = new String(System.console().readPassword("Keystore password: "))
-    def keyAlias = System.console().readLine("\n\$ Enter key alias: ")
-    def keyPw  = new String(System.console().readPassword("Key password: "))
-
-    android.signingConfigs.release.storePassword = storePw
-    android.signingConfigs.release.keyAlias = keyAlias
-    android.signingConfigs.release.keyPassword = keyPw
+    def password = new String(System.console().readPassword("\n\npassword: "))
+    android.signingConfigs.release.storePassword = password
+    android.signingConfigs.release.keyPassword = password
 }
 
 tasks.whenTaskAdded { theTask ->

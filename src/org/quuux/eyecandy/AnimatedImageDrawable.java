@@ -96,7 +96,7 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
 
     @Override
     public int getOpacity() {
-        return PixelFormat.OPAQUE;
+        return PixelFormat.TRANSLUCENT;
     }
 
 

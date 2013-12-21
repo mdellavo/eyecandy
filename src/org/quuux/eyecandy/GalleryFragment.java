@@ -301,14 +301,13 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
             @Override
             public void onAnimationCancel(final Animator animation) {
                 super.onAnimationCancel(animation);
-                v.setAlpha(end);
-
+                ViewHelper.setAlpha(v, end);
             }
 
             @Override
             public void onAnimationEnd(final Animator animation) {
                 super.onAnimationEnd(animation);
-                v.setAlpha(end);
+                ViewHelper.setAlpha(v, end);
             }
         });
         s.start();

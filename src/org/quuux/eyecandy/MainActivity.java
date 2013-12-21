@@ -44,6 +44,8 @@ import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.*;
 import com.nineoldandroids.view.ViewPropertyAnimator;
@@ -107,7 +109,8 @@ public class MainActivity
         bindService(new Intent("com.android.vending.billing.InAppBillingService.BIND"),
                 mServiceConn, Context.BIND_AUTO_CREATE);
 
-        getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
+        if (findViewById(android.R.id.content) == null)
+            getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
         setContentView(R.layout.base);
 
@@ -117,11 +120,11 @@ public class MainActivity
         actionBar.setDisplayShowTitleEnabled(false);
 
         final ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
-                this,
+                getSupportActionBar().getThemedContext(),
                 R.array.modes,
-                android.R.layout.simple_spinner_dropdown_item
+                R.layout.support_simple_spinner_dropdown_item
         );
-
+        spinnerAdapter.setDropDownViewResource(R.layout.support_simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
         final int mode;
@@ -191,6 +194,16 @@ public class MainActivity
         registerReceiver(mBroadcastReceiver, filter);
 
         mAdView.resume();
+
+        checkPlayServices();
+    }
+
+    private void checkPlayServices() {
+        final int result = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        if (result != ConnectionResult.SUCCESS) {
+            final Dialog dialog = GooglePlayServicesUtil.getErrorDialog(result, this, 0);
+            dialog.show();
+        }
     }
 
     @Override
@@ -252,15 +265,11 @@ public class MainActivity
         }
     }
 
+
     @Override
     public boolean onCreateOptionsMenu(final Menu menu) {
-
-        if (!mPurchases.contains(SKU_UNLOCK)) {
-            final MenuInflater inflater = new MenuInflater(this);
-            inflater.inflate(R.menu.nag, menu);
-        }
-
-        return true;
+        getMenuInflater().inflate(R.menu.nag, menu);
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
@@ -775,6 +784,9 @@ public class MainActivity
     };
 
     private void startPurchase() {
+
+        if (mService == null)
+            return;
 
         final Bundle response;
         try {
