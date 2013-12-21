@@ -55,6 +55,7 @@ import org.quuux.orm.Query;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -96,6 +97,7 @@ public class MainActivity
     private boolean mLeanback;
 
     private static boolean sNagShown;
+    private Set<String> mPurchases = Collections.<String>emptySet();
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -122,7 +124,16 @@ public class MainActivity
 
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
-        actionBar.setSelectedNavigationItem(EyeCandyPreferences.getLastNavMode(this));
+        final int mode;
+        if (EyeCandyPreferences.isFirstRun(this)) {
+            EyeCandyPreferences.markFirstRun(this);
+            mode = MODE_GALLERY;
+            onFirstRun();
+        } else {
+            mode = EyeCandyPreferences.getLastNavMode(this);
+        }
+
+        actionBar.setSelectedNavigationItem(mode);
 
         mAdView = (AdView) findViewById(R.id.ad);
         mAdView.setAdListener(mAdListener);
@@ -142,6 +153,12 @@ public class MainActivity
         if (BuildConfig.DEBUG)
             ViewServer.get(this).addWindow(this);
 
+        mPurchases = EyeCandyPreferences.getPurchases(this);
+        onPurchasesUpdated();
+    }
+
+    private void onFirstRun() {
+        Toast.makeText(this, R.string.first_run, Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -154,6 +171,8 @@ public class MainActivity
         if (mServiceConn != null) {
             unbindService(mServiceConn);
         }
+
+        mAdView.destroy();
     }
 
     @Override
@@ -170,12 +189,15 @@ public class MainActivity
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         filter.addAction(ACTION_PURCHASE);
         registerReceiver(mBroadcastReceiver, filter);
+
+        mAdView.resume();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         unregisterReceiver(mBroadcastReceiver);
+        mAdView.pause();
     }
 
     @Override
@@ -230,16 +252,39 @@ public class MainActivity
         }
     }
 
-    private void onPurchaseComplete() {
-        mAdView.setVisibility(View.GONE);
-        mAdView.destroy();
+    @Override
+    public boolean onCreateOptionsMenu(final Menu menu) {
 
-        final FragmentManager fm = getSupportFragmentManager();
-        final NagDialog nag = (NagDialog) fm.findFragmentByTag("nag");
-        if (nag != null) {
-            nag.dismiss();
+        if (!mPurchases.contains(SKU_UNLOCK)) {
+            final MenuInflater inflater = new MenuInflater(this);
+            inflater.inflate(R.menu.nag, menu);
         }
 
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(final MenuItem item) {
+
+        boolean rv = false;
+        switch (item.getItemId()) {
+            case R.id.unlock:
+                showNag(true);
+                rv = true;
+                break;
+
+            default:
+                rv = super.onOptionsItemSelected(item);
+                break;
+        }
+
+        return rv;
+    }
+
+    private void onPurchaseComplete() {
+        mPurchases.add(SKU_UNLOCK);
+        EyeCandyPreferences.setPurchases(this, mPurchases);
+        onPurchasesUpdated();
     }
 
     @Override
@@ -513,10 +558,41 @@ public class MainActivity
     }
 
     private void onPurchaseResult(final Set<String> purchases) {
-        if (purchases == null || !purchases.contains(SKU_UNLOCK)) {
+        if (purchases == null)
+            return;
+
+        mPurchases = purchases;
+        EyeCandyPreferences.setPurchases(this, purchases);
+        onPurchasesUpdated();
+
+    }
+
+    private void onPurchasesUpdated() {
+        final boolean unlocked = mPurchases.contains(SKU_UNLOCK);
+
+        if (unlocked) {
+            hideAds();
+            hideNag();
+        } else {
             showNag();
             loadAds();
         }
+
+        supportInvalidateOptionsMenu();
+    }
+
+    private void hideNag() {
+        final FragmentManager fm = getSupportFragmentManager();
+        final NagDialog nag = (NagDialog) fm.findFragmentByTag("nag");
+        if (nag != null) {
+            nag.dismiss();
+        }
+
+    }
+
+    private void hideAds() {
+        mAdView.setVisibility(View.GONE);
+        mAdView.destroy();
     }
 
     private void loadAds() {
@@ -525,8 +601,8 @@ public class MainActivity
         mAdView.setVisibility(View.VISIBLE);
     }
 
-    private void showNag() {
-        if (!sNagShown) {
+    private void showNag(final boolean forced) {
+        if (!sNagShown || forced) {
             final FragmentManager fm = getSupportFragmentManager();
             if (fm.findFragmentByTag("nag") == null) {
                 final NagDialog dialog = NagDialog.newInstance();
@@ -534,6 +610,10 @@ public class MainActivity
             }
             sNagShown = true;
         }
+    }
+
+    private void showNag() {
+        showNag(false);
     }
 
     static class ImageOpenerAdapter extends ArrayAdapter<ResolveInfo> {
@@ -695,6 +775,7 @@ public class MainActivity
     };
 
     private void startPurchase() {
+
         final Bundle response;
         try {
             response = mService.getBuyIntent(3, getPackageName(), SKU_UNLOCK, "inapp", null);

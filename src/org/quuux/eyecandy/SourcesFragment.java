@@ -387,8 +387,10 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
                     .first(new FetchListener<Image>() {
                         @Override
                         public void onResult(final Image result) {
-                            if (result == null)
+                            if (result == null) {
+                                holder.thumbnail.setImageDrawable(context.getResources().getDrawable(R.drawable.ic_loading));
                                 return;
+                            }
 
                             mPicasso
                                     .load(result.getThumbnailUrl())

@@ -526,7 +526,9 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
     }
 
     private void endZoom(final View v) {
-        ViewHelper.setAlpha(v, 1);
+        if (v != null)
+            ViewHelper.setAlpha(v, 1);
+
         mZoomedImage.setVisibility(View.GONE);
         mCurrentAnimator = null;
         mZoomed = false;

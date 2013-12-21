@@ -326,12 +326,9 @@ public class ScrapeService extends IntentService {
 
             subreddit.touch();
             mSession.add(subreddit);
-            mSession.commit(new FlushListener() {
-                @Override
-                public void onFlushed() {
-                    // onScrapeComplete(subreddit, true);
-                }
-            }).get();
+            mSession.commit().get();
+            onScrapeComplete(subreddit, true);
+
         }
 
         private void consume(final Image image) throws ExecutionException, InterruptedException {

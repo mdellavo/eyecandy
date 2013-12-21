@@ -43,4 +43,6 @@
 
     <string name="purchase_call_to_action">Buy now</string>
     <string name="nag_thank_you">Thank you for installing Eye Candy!</string>
+    <string name="unlock_eyecandy">Unlock Eye Candy</string>
+    <string name="first_run">Please be patient, scraping...</string>
 </resources>
