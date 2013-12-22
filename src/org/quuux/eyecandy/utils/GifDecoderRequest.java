@@ -6,6 +6,7 @@ import android.os.SystemClock;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.Response;
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.HttpHeaderParser;
 
 import org.quuux.eyecandy.Log;
@@ -30,6 +31,7 @@ public class GifDecoderRequest extends Request<GifDecoder> {
 
     @Override
     protected Response parseNetworkResponse(final NetworkResponse response) {
+        Response rv = null;
         final GifDecoder decoder;
         final long t1, t2;
         synchronized (sLock) {
@@ -37,12 +39,19 @@ public class GifDecoderRequest extends Request<GifDecoder> {
             t1 = SystemClock.currentThreadTimeMillis();
 
             decoder = new GifDecoder();
-            decoder.read(new ByteArrayInputStream(response.data));
+
+            try {
+                decoder.read(new ByteArrayInputStream(response.data));
+                rv = Response.success(decoder, HttpHeaderParser.parseCacheHeaders(response));
+            } catch (Exception e) {
+                Log.e(TAG, "error decoding gif", e);
+                rv = Response.error(new VolleyError(e));
+            }
 
             t2 = SystemClock.currentThreadTimeMillis();
         }
         Log.d(TAG, "Movie loaded in %s ms", t2-t1);
-        return Response.success(decoder, HttpHeaderParser.parseCacheHeaders(response));
+        return rv;
     }
 
     @Override

@@ -472,7 +472,11 @@ public class MainActivity
         if (mLeanback)
             exitLeanback();
 
+
+
         final FragmentManager frags = getSupportFragmentManager();
+        if (!addToBackStack)
+            frags.popBackStack();
         final FragmentTransaction ft = frags.beginTransaction();
         ft.setTransition(FragmentTransaction.TRANSIT_ENTER_MASK);
         //ft.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
