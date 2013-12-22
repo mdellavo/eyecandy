@@ -15,6 +15,7 @@ import java.util.concurrent.Executor;
 public class ImageUtils {
 
     private static final String TAG = Log.buildTag(ImageUtils.class);
+    private static boolean sTryRenderScript = true;
 
     public interface Listener {
         void complete(Bitmap bitmap);
@@ -56,10 +57,13 @@ public class ImageUtils {
 
                 Bitmap rv = null;
 
-                try {
-                    rv = renderscriptBlur(context, src, radius);
-                } catch(Exception e) {
-                    Log.e(TAG, "error generating blur via renderscript", e);
+                if (sTryRenderScript) {
+                    try {
+                        rv = renderscriptBlur(context, src, radius);
+                    } catch(Exception e) {
+                        Log.e(TAG, "error generating blur via renderscript", e);
+                        sTryRenderScript = false;
+                    }
                 }
 
                 if (rv == null) {
@@ -74,11 +78,12 @@ public class ImageUtils {
     }
 
     private static Bitmap renderscriptBlur(final Context context, final Bitmap src, final float radius) {
+        final RenderScript rs = RenderScript.create(context);
+
         final Bitmap in = src.copy(Bitmap.Config.ARGB_8888, false);
 
         final Bitmap out = Bitmap.createBitmap(in.getWidth(), in.getHeight(), Bitmap.Config.ARGB_8888);
 
-        final RenderScript rs = RenderScript.create(context);
         final Allocation tmpIn = Allocation.createFromBitmap(rs, in);
 
         final ScriptIntrinsicBlur theIntrinsic = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs));

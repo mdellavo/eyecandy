@@ -14,74 +14,62 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.SystemClock;
 
+import org.quuux.eyecandy.utils.GifDecoder;
+
 // FIXME should probably cap max bitmap size for hw surface, see EyeCandyView
 public class AnimatedImageDrawable extends Drawable implements Drawable.Callback, Runnable, Animatable {
 
     private static final String TAG = Log.buildTag(AnimatedImageDrawable.class);
 
-    private final Bitmap mBitmap;
-    private final Movie mMovie;
-    private final Canvas mCanvas;
+    private final GifDecoder mDecoder;
     private final Rect mDest;
     private boolean mRunning;
     private long mStartTime;
 
     private final Handler mHandler;
 
-    public AnimatedImageDrawable(final Context context, final Movie movie, final Rect dest) {
+    private int mFrame;
+
+    private final Runnable mCallback = new Runnable() {
+        @Override
+        public void run() {
+            invalidateSelf();
+        }
+    };
+
+    public AnimatedImageDrawable(final Context context, final GifDecoder decoder, final Rect dest) {
         super();
 
-        mMovie = movie;
+        mDecoder = decoder;
         mDest = dest;
 
         mHandler = new Handler(context.getMainLooper());
 
-        final int width = mMovie.width() > 0 ? mMovie.width() : dest.width();
-        final int height = mMovie.height() > 0 ? mMovie.height() : dest.height();
+        final int width = mDecoder.getWidth() > 0 ? mDecoder.getWidth() : dest.width();
+        final int height = mDecoder.getHeight() > 0 ? mDecoder.getHeight() : dest.height();
 
-        mBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        mCanvas = new Canvas(mBitmap);
         setCallback(this);
-    }
 
-    public void recycle() {
-        mBitmap.recycle();
-    }
+        mFrame = 0;
 
-    public boolean isRecycled() {
-        return mBitmap.isRecycled();
     }
 
     @Override
     public int getIntrinsicHeight() {
-        return mMovie.height();
+        return mDecoder.getHeight();
     }
 
     @Override
     public int getIntrinsicWidth() {
-        return mMovie.width();
-    }
-
-    private void render(final int time) {
-        if (isRecycled())
-            throw new IllegalStateException("bitmap is recycled");
-
-        mMovie.setTime(time);
-        mMovie.draw(mCanvas, 0, 0);
-    }
-
-    public Bitmap getFrame(final int time) {
-        render(time);
-        return mBitmap;
+        return mDecoder.getWidth();
     }
 
     @Override
     public void draw(final Canvas canvas) {
-        if (mMovie == null || mMovie.duration() == 0)
-            return;
-        final int relTime = (int) ((SystemClock.uptimeMillis() - mStartTime) % mMovie.duration());
-        canvas.drawBitmap(getFrame(relTime), 0, 0, null);
-        invalidateSelf();
+        final Bitmap bitmap = mDecoder.getFrame(mFrame);
+        canvas.drawBitmap(bitmap, 0, 0, null);
+        mHandler.postDelayed(mCallback, mDecoder.getDelay(mFrame));
+        mFrame = (mFrame + 1) % mDecoder.getFrameCount();
     }
 
     @Override
@@ -141,5 +129,9 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
         mStartTime = SystemClock.uptimeMillis();
         unscheduleSelf(this);
         scheduleSelf(this, SystemClock.uptimeMillis() + 16);
+    }
+
+    public Bitmap getFrame(final int i) {
+        return mDecoder.getFrame(i);
     }
 }

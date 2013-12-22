@@ -9,8 +9,6 @@ import android.graphics.Bitmap;
 import android.graphics.Movie;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.Display;
@@ -26,7 +24,6 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -39,11 +36,10 @@ import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.ViewHelper;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Target;
 
+import org.quuux.eyecandy.utils.GifDecoder;
+import org.quuux.eyecandy.utils.GifDecoderRequest;
 import org.quuux.eyecandy.utils.ImageUtils;
-import org.quuux.eyecandy.utils.MovieRequest;
-import org.quuux.orm.Database;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Func;
 import org.quuux.orm.Query;
@@ -339,11 +335,11 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
 
             final RequestQueue queue = EyeCandyVolley.getRequestQueue(context);
 
-            final MovieRequest request = new MovieRequest(
+            final GifDecoderRequest request = new GifDecoderRequest(
                     tag.image.getUrl(),
-                    new Response.Listener<Movie>() {
+                    new Response.Listener<GifDecoder>() {
                         @Override
-                        public void onResponse(final Movie response) {
+                        public void onResponse(final GifDecoder response) {
                             if (response != null) {
                                 final AnimatedImageDrawable drawable =
                                         new AnimatedImageDrawable(context, response, bounds);

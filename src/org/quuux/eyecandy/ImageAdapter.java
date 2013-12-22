@@ -7,11 +7,10 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.ImageRequest;
-import com.android.volley.toolbox.Volley;
-import org.quuux.eyecandy.utils.MovieRequest;
-import org.quuux.eyecandy.utils.OkHttpStack;
+
+import org.quuux.eyecandy.utils.GifDecoder;
+import org.quuux.eyecandy.utils.GifDecoderRequest;
 import org.quuux.orm.QueryListener;
 import org.quuux.orm.Session;
 
@@ -170,11 +169,11 @@ public class ImageAdapter {
             Log.d(TAG, "image %s is animated %s", image, image.isAnimated());
 
             if (image.isAnimated()) {
-                request = new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
+                request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDecoder>() {
                     @Override
-                    public void onResponse(final Movie movie) {
-                        Log.d(TAG, "got movie reponse %s - %s", image, movie);
-                        ImageAdapter.this.onResponse(image, movie);
+                    public void onResponse(final GifDecoder decoder) {
+                        Log.d(TAG, "got movie reponse %s - %s", image, decoder);
+                        //ImageAdapter.this.onResponse(image, decoder);
                     }
                 }, errorListener) {
                     @Override

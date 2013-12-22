@@ -8,9 +8,6 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Movie;
 import android.graphics.Point;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -25,7 +22,6 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -41,15 +37,12 @@ import com.android.volley.toolbox.ImageRequest;
 import com.nineoldandroids.animation.Animator;
 import com.nineoldandroids.view.ViewHelper;
 import com.nineoldandroids.view.ViewPropertyAnimator;
-import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Target;
 
+import org.quuux.eyecandy.utils.GifDecoder;
+import org.quuux.eyecandy.utils.GifDecoderRequest;
 import org.quuux.eyecandy.utils.ImageUtils;
-import org.quuux.eyecandy.utils.MovieRequest;
-import org.quuux.orm.CountListener;
 import org.quuux.orm.Database;
-import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Query;
 import org.quuux.orm.ScalarListener;
@@ -678,29 +671,30 @@ public class ViewerFragment
             if (context == null)
                 return;
 
-            final MovieRequest request = new MovieRequest(image.getUrl(), new Response.Listener<Movie>() {
+            final GifDecoderRequest request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDecoder>() {
                 @Override
-                public void onResponse(final Movie movie) {
+                public void onResponse(final GifDecoder decoder) {
 
                     final Context context = getContext();
                     if (context == null)
                         return;
 
-                    if (movie == null || movie.width() == 0 || movie.height() == 0 || movie.duration() == 0) {
-                        Log.d(TAG, "error loading movie %s", image);
+                    if (decoder == null || decoder.getWidth() == 0 || decoder.getHeight() == 0 || decoder.getFrameCount() == 0) {
+                        Log.d(TAG, "error loading gif %s", image);
                         return;
                     }
 
-                    final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, movie, null);
+                    final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, decoder, null);
                     holder.image.setImageDrawable(drawable);
                     drawable.setVisible(true, true);
 
                     holder.movie = drawable;
 
-                    setBacking(holder, drawable.getFrame(movie.duration()/2));
+                    // FIXME async task this, factor this out
+                    setBacking(holder, drawable.getFrame(decoder.getFrameCount()/2));
 
                     final long t2 = SystemClock.uptimeMillis();
-                    Log.d(TAG, "loaded movie - %s (%s x %s @ %s ms) in %d ms", image, movie.width(), movie.height(), movie.duration(), t2-t1);
+                    Log.d(TAG, "loaded gif - %s (%s x %s @ %s frames) in %d ms", image, decoder.getWidth(), decoder.getHeight(), decoder.getFrameCount(), t2-t1);
 
                     onImageLoaded(holder);
 
@@ -739,7 +733,6 @@ public class ViewerFragment
             }
 
             if (holder.movie != null) {
-                holder.movie.recycle();
                 holder.movie = null;
             }
 
