@@ -69,7 +69,7 @@ public class Subreddit implements Entity, Serializable {
                 session.commit(new FlushListener() {
                     @Override
                     public void onFlushed() {
-                        ScrapeService.scrapeSubreddit(context, s);
+                        refresh(context, s);
 
                         if (listener != null)
                             listener.onResult(s);
@@ -82,7 +82,7 @@ public class Subreddit implements Entity, Serializable {
 
     public static void remove(final Context context, final String subreddit, final FlushListener listener) {
         final Session session = EyeCandyDatabase.getSession(context);
-        session.query(Subreddit.class).filter("subreddit=?", subreddit);
+        session.query(Subreddit.class).filter("subreddit=?", subreddit).delete(null);
         session.query(Image.class).filter("subreddit=?", subreddit).delete(null);
         session.commit(new FlushListener() {
             @Override
@@ -94,4 +94,9 @@ public class Subreddit implements Entity, Serializable {
     }
 
 
+    public static void refresh(final Context context, final Subreddit subreddit) {
+        subreddit.setLastScrape(0);
+        ScrapeService.scrapeSubreddit(context, subreddit);
+
+    }
 }

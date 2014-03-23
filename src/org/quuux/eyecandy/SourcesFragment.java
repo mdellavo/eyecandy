@@ -273,26 +273,15 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
     }
 
     private void showAddDialog() {
-        final DialogFragment frag = new AddSubredditDialog();
-        frag.show(getActivity().getSupportFragmentManager(), "add-subreddit");
-    }
-
-    private void addSubreddit(final String subreddit) {
-
-        final Context context = getActivity();
-        if (context == null)
-            return;
-
-
-        Subreddit.add(context, subreddit, new FetchListener<Subreddit>() {
+        final AddSubredditDialog frag = new AddSubredditDialog();
+        frag.setListener(new FetchListener<Subreddit>() {
             @Override
             public void onResult(final Subreddit result) {
-                mAdapter.add(result);
+                if (mAdapter.getPositionForItem(result) == -1)
+                    mAdapter.add(result);
             }
         });
-
-
-
+        frag.show(getActivity().getSupportFragmentManager(), "add-subreddit");
     }
 
     private void refreshSubreddit(final Subreddit subreddit) {
@@ -300,8 +289,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         if (context == null)
             return;
 
-        subreddit.setLastScrape(0);
-        ScrapeService.scrapeSubreddit(context, subreddit);
+        Subreddit.refresh(context, subreddit);
     }
 
     private void deleteSubreddit(final Subreddit subreddit) {
@@ -312,6 +300,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         Log.d(TAG, "deleting subreddit: %s", subreddit.getSubreddit());
         mAdapter.remove(subreddit);
         Subreddit.remove(context, subreddit.getSubreddit(), null);
+        mAdapter.notifyDataSetChanged();
     }
 
     static class Adapter extends QueryAdapter<Subreddit> {

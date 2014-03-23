@@ -69,6 +69,8 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
     public void onActivityCreated(final Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mAdapter = new Adapter(getActivity());
+        for (final String s : EyeCandyDatabase.SUBREDDITS)
+            mAdapter.add(s);
 
         setListAdapter(mAdapter);
 
@@ -80,11 +82,18 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
                 if (result == null)
                     return;
 
-                final List<String> all = Arrays.asList(EyeCandyDatabase.SUBREDDITS);
-
                 final ListView listView = getListView();
-                for (Subreddit s : result)
-                    listView.setItemChecked(all.indexOf(s.getSubreddit()), true);
+                for (Subreddit s : result) {
+
+                    int position = mAdapter.getPosition(s.getSubreddit());
+                    if (position == -1) {
+                        mAdapter.add(s.getSubreddit());
+                        position = mAdapter.getPosition(s.getSubreddit());
+                    }
+
+                    listView.setItemChecked(position, true);
+
+                }
             }
         });
     }
@@ -135,7 +144,15 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
     }
 
     private void showAddDialog() {
-        final DialogFragment frag = new AddSubredditDialog();
+        final AddSubredditDialog frag = new AddSubredditDialog();
+        frag.setListener(new FetchListener<Subreddit>() {
+            @Override
+            public void onResult(final Subreddit result) {
+                mAdapter.add(result.getSubreddit());
+                mAdapter.notifyDataSetChanged();
+                getListView().setItemChecked(mAdapter.getPosition(result.getSubreddit()), true);
+            }
+        });
         frag.show(getActivity().getSupportFragmentManager(), "add-subreddit");
     }
 
@@ -156,7 +173,7 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
         final LayoutInflater mInflater;
 
         Adapter(final Context context) {
-            super(context, 0, EyeCandyDatabase.SUBREDDITS);
+            super(context, 0);
             mInflater = getLayoutInflater(null);
             mNormalColor = Color.WHITE;
             mSelectedColor = Color.YELLOW;

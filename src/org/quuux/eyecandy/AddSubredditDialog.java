@@ -11,9 +11,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 
+import org.quuux.orm.FetchListener;
+
 public class AddSubredditDialog extends DialogFragment {
 
     EditText mEditTextSubreddit;
+    private FetchListener<Subreddit> mListener;
 
     @Override
     public Dialog onCreateDialog(final Bundle savedInstanceState) {
@@ -36,7 +39,7 @@ public class AddSubredditDialog extends DialogFragment {
             public void onClick(final DialogInterface dialog, final int which) {
                 final String s = mEditTextSubreddit.getText().toString().trim();
                 if (!TextUtils.isEmpty(s)) {
-                    Subreddit.add(getActivity(), s, null);
+                    Subreddit.add(getActivity(), s, mListener);
                 }
             }
         });
@@ -45,4 +48,9 @@ public class AddSubredditDialog extends DialogFragment {
 
         return builder.create();
     }
+
+    public void setListener(final FetchListener<Subreddit> listener) {
+        mListener = listener;
+    }
+
 }
