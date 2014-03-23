@@ -1,6 +1,7 @@
 package org.quuux.eyecandy;
 
 import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 
@@ -71,6 +72,7 @@ public class ScrapeService extends IntentService {
         mRequestQueue = EyeCandyVolley.getRequestQueue(this);
 
         final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
+
         if (subreddit != null) {
             dispatchScrape(subreddit);
         } else {
@@ -175,6 +177,12 @@ public class ScrapeService extends IntentService {
             }
         };
         mRequestQueue.add(request);
+    }
+
+    public static void scrapeSubreddit(final Context context, final Subreddit subreddit) {
+        final Intent i = new Intent(context, ScrapeService.class);
+        i.putExtra(ScrapeService.EXTRA_SUBREDDIT, subreddit);
+        context.startService(i);
     }
 
     class RedditItem {

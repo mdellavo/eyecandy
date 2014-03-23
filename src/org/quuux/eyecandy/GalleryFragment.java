@@ -46,7 +46,11 @@ import org.quuux.orm.Query;
 import org.quuux.orm.Session;
 import org.quuux.orm.util.QueryAdapter;
 
-public class GalleryFragment extends Fragment implements AbsListView.OnScrollListener, OnBackPressedListener, View.OnLongClickListener {
+public class GalleryFragment
+        extends Fragment
+        implements AbsListView.OnScrollListener,
+                   OnBackPressedListener,
+                   View.OnLongClickListener {
 
 
     private static final String TAG = Log.buildTag(GalleryFragment.class);
@@ -132,7 +136,6 @@ public class GalleryFragment extends Fragment implements AbsListView.OnScrollLis
         mGridView.setOnScrollListener(this);
 
         mZoomedImage = (ImageView)rv.findViewById(R.id.zoomed_image);
-
 
         mTitle = (TextView)rv.findViewById(R.id.title);
         ViewHelper.setAlpha(mTitle, 0);

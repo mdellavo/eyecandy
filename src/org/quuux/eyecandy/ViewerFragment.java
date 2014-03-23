@@ -733,11 +733,11 @@ public class ViewerFragment
             }
 
             if (holder.movie != null) {
+                holder.movie.recycle();
                 holder.movie = null;
             }
 
             container.removeView(view);
-            // FIXME recycle drawable
         }
 
         private void setBacking(final Holder holder, final Bitmap bitmap) {

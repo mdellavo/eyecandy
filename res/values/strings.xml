@@ -45,4 +45,7 @@
     <string name="nag_thank_you">Thank you for installing Eye Candy!</string>
     <string name="unlock_eyecandy">Unlock Eye Candy</string>
     <string name="first_run">Please be patient, scraping...</string>
+    <string name="setup_description">Select from the default subreddits or add your favorites...</string>
+    <string name="done">Done!</string>
+    <string name="add_subreddit_hint">earthporn</string>
 </resources>

@@ -9,15 +9,11 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 
-import android.text.TextUtils;
 import android.view.ContextMenu;
-import android.view.ContextThemeWrapper;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,12 +22,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
@@ -41,8 +35,8 @@ import com.squareup.picasso.Picasso;
 
 import org.quuux.eyecandy.utils.ImageUtils;
 import org.quuux.orm.Database;
-import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
+import org.quuux.orm.FlushListener;
 import org.quuux.orm.Func;
 import org.quuux.orm.Query;
 import org.quuux.orm.ScalarListener;
@@ -289,26 +283,14 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         if (context == null)
             return;
 
-        final Session session = EyeCandyDatabase.getSession(context);
 
-        session.query(Subreddit.class).filter("subreddit=?", subreddit).first(new FetchListener<Subreddit>() {
+        Subreddit.add(context, subreddit, new FetchListener<Subreddit>() {
             @Override
             public void onResult(final Subreddit result) {
-                if (result != null)
-                    return;
-
-                Log.d(TAG, "adding subreddit - %s", subreddit);
-
-                final Subreddit s = new Subreddit(subreddit);
-
-                mAdapter.add(s);
-
-                session.add(s);
-                session.commit();
-
-                refreshSubreddit(s);
+                mAdapter.add(result);
             }
         });
+
 
 
     }
@@ -319,10 +301,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             return;
 
         subreddit.setLastScrape(0);
-
-        final Intent i = new Intent(context, ScrapeService.class);
-        i.putExtra(ScrapeService.EXTRA_SUBREDDIT, subreddit);
-        context.startService(i);
+        ScrapeService.scrapeSubreddit(context, subreddit);
     }
 
     private void deleteSubreddit(final Subreddit subreddit) {
@@ -331,19 +310,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             return;
 
         Log.d(TAG, "deleting subreddit: %s", subreddit.getSubreddit());
-
-        final Session session = EyeCandyDatabase.getSession(context);
-        session.delete(subreddit);
-        session.commit();
-
-        session.query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).delete(new ScalarListener<Long>() {
-            @Override
-            public void onResult(final Long rows) {
-                Log.d(TAG, "Deleted %s images belonging to subreddit", rows);
-                mAdapter.remove(subreddit);
-                mAdapter.notifyDataSetChanged();
-            }
-        });
+        mAdapter.remove(subreddit);
+        Subreddit.remove(context, subreddit.getSubreddit(), null);
     }
 
     static class Adapter extends QueryAdapter<Subreddit> {
@@ -460,42 +428,6 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             args.putSerializable("subreddit", subreddit);
             rv.setArguments(args);
             return rv;
-        }
-    }
-
-    // FIXME needs to be static
-    public class AddSubredditDialog extends DialogFragment {
-
-        EditText mEditTextSubreddit;
-
-        @Override
-        public Dialog onCreateDialog(final Bundle savedInstanceState) {
-
-            final Context context = getActivity();
-
-
-            final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-            builder.setTitle(R.string.dialog_add_subreddit_title);
-
-            final LayoutInflater inflater =
-                    (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            final View view = inflater.inflate(R.layout.add_subreddit, null);
-            builder.setView(view);
-
-            mEditTextSubreddit = (EditText) view.findViewById(R.id.subreddit);
-
-            builder.setPositiveButton(R.string.add, new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(final DialogInterface dialog, final int which) {
-                    final String s = mEditTextSubreddit.getText().toString().trim();
-                    if (!TextUtils.isEmpty(s))
-                        addSubreddit(s);
-                }
-            });
-
-            builder.setNegativeButton(R.string.cancel, null);
-
-            return builder.create();
         }
     }
 

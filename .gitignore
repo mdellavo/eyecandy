@@ -8,4 +8,6 @@ res/values/billing.xml
 .gradle
 gradle
 build
+builds
 *.keystore
+*.iml

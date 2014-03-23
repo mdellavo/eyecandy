@@ -26,7 +26,7 @@ public class EyeCandyVolley extends Volley {
     public static RequestQueue getRequestQueue(final Context context) {
         if (sRequestQueue == null) {
 
-            File cacheDir = new File(context.getExternalCacheDir(), "volley");
+            final File cacheDir = new File(context.getExternalCacheDir(), "volley");
 
             String userAgent = "volley/0";
             try {
@@ -36,15 +36,7 @@ public class EyeCandyVolley extends Volley {
             } catch (PackageManager.NameNotFoundException e) {
             }
 
-            HttpStack stack;
-            if (Build.VERSION.SDK_INT >= 9) {
-                stack = new HurlStack();
-            } else {
-                // Prior to Gingerbread, HttpUrlConnection was unreliable.
-                // See: http://android-developers.blogspot.com/2011/09/androids-http-clients.html
-                stack = new HttpClientStack(AndroidHttpClient.newInstance(userAgent));
-            }
-
+            HttpStack stack = new OkHttpStack(context);
             Network network = new BasicNetwork(stack);
 
             sRequestQueue= new RequestQueue(new DiskBasedCache(cacheDir, CACHE_SIZE), network);

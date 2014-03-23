@@ -54,6 +54,8 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
 
     }
 
+
+
     @Override
     public int getIntrinsicHeight() {
         return mDecoder.getHeight();
@@ -68,7 +70,12 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
     public void draw(final Canvas canvas) {
         final Bitmap bitmap = mDecoder.getFrame(mFrame);
         canvas.drawBitmap(bitmap, 0, 0, null);
-        mHandler.postDelayed(mCallback, mDecoder.getDelay(mFrame));
+
+        final int delay = Math.max(mDecoder.getDelay(mFrame), 1000 / mDecoder.getFrameCount());
+
+        mHandler.postDelayed(mCallback, delay);
+        Log.d(TAG, "delay = %s", delay);
+
         mFrame = (mFrame + 1) % mDecoder.getFrameCount();
     }
 
@@ -133,5 +140,9 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
 
     public Bitmap getFrame(final int i) {
         return mDecoder.getFrame(i);
+    }
+
+    public void recycle() {
+        mDecoder.recycle();
     }
 }

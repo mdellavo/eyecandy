@@ -11,6 +11,7 @@ import org.quuux.orm.QueryListener;
 import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -26,8 +27,10 @@ public class EyeCandyDatabase extends Database {
     // TODO
     // http://headlikeanorange.tumblr.com/
     // http://radar.weather.gov/Conus/Loop/NatLoop.gif
+    // romain guy's
+    // wikipaintings
 
-    private static final String SUBREDDITS[] = {
+    public static final String SUBREDDITS[] = {
             "woahdude",
             "Cinemagraphs",
             "gifs",
@@ -88,7 +91,9 @@ public class EyeCandyDatabase extends Database {
             //"foodporn"
     };
 
-
+    static {
+        Arrays.sort(SUBREDDITS);
+    }
 
     protected EyeCandyDatabase(final Context context, final String name, final int version) {
         super(context, name, version);
@@ -132,15 +137,6 @@ public class EyeCandyDatabase extends Database {
 
         if (instance == null) {
             instance = new EyeCandyDatabase(context.getApplicationContext(), NAME, VERSION);
-
-            final Session session = instance.createSession();
-            session.query(Subreddit.class).count(new ScalarListener<Long>() {
-                @Override
-                public void onResult(final Long count) {
-                    if (count == 0)
-                        initSources(context, instance);
-                }
-            });
         }
 
         return instance;

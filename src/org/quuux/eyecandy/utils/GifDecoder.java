@@ -58,7 +58,7 @@ public class GifDecoder {
         protected Vector<GifFrame> frames; // frames read from current file
         protected int frameCount;
 
-        private static class GifFrame {
+    private static class GifFrame {
                 public GifFrame(Bitmap im, int del) {
                         image = im;
                         delay = del;
@@ -647,6 +647,12 @@ public class GifDecoder {
     public int getHeight() {
         return height;
     }
+
+    public void recycle() {
+        image.recycle();
+        lastBitmap.recycle();
+    }
+
 
 }
 

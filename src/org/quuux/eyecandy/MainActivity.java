@@ -70,7 +70,8 @@ public class MainActivity
                    ViewerFragment.Listener,
                    RandomFragment.Listener,
                    GalleryFragment.Listener,
-                   SourcesFragment.Listener {
+                   SourcesFragment.Listener,
+                   SetupFragment.Listener {
 
     private static final String TAG = "MainActivity";
 
@@ -80,10 +81,12 @@ public class MainActivity
     private static final String FRAG_GALLERY = "gallery-%s";
     private static final String FRAG_VIEWER = "viewer-%s";
     private static final String FRAG_SOURCES = "subreddits";
+    private static final String FRAG_SETUP = "setup";
 
     public static final int MODE_SLIDE_SHOW = 0;
     public static final int MODE_SOURCES = 1;
     public static final int MODE_GALLERY = 2;
+    private static final int MODE_SETUP = 3;
 
     public static final int MODE_BURNS = -1;
     private static final String SKU_UNLOCK = "unlock";
@@ -127,10 +130,10 @@ public class MainActivity
         spinnerAdapter.setDropDownViewResource(R.layout.support_simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
-        final int mode;
+
+        int mode;
         if (EyeCandyPreferences.isFirstRun(this)) {
-            EyeCandyPreferences.markFirstRun(this);
-            mode = MODE_GALLERY;
+            mode = MODE_SETUP;
             onFirstRun();
         } else {
             mode = EyeCandyPreferences.getLastNavMode(this);
@@ -145,13 +148,13 @@ public class MainActivity
 
         setupSystemUi();
 
-        mHandler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
-                startService(intent);
-            }
-       }, 500);
+//        mHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
+//                startService(intent);
+//            }
+//       }, 500);
 
         if (BuildConfig.DEBUG)
             ViewServer.get(this).addWindow(this);
@@ -161,7 +164,6 @@ public class MainActivity
     }
 
     private void onFirstRun() {
-        Toast.makeText(this, R.string.first_run, Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -330,6 +332,10 @@ public class MainActivity
             case MODE_GALLERY:
                 if (!isFragCurrently(FRAG_GALLERY))
                     onShowGallery();
+                break;
+
+            case MODE_SETUP:
+                onShowSetup();
                 break;
         }
 
@@ -510,6 +516,12 @@ public class MainActivity
         swapFrag(frag, FRAG_VIEWER, addToBackStack);
     }
 
+    private void onShowSetup() {
+        Fragment frag = getFrag(FRAG_SETUP);
+        if (frag == null)
+            frag = SetupFragment.newInstance();
+        swapFrag(frag, FRAG_SETUP, false);
+    }
 
     public void showImage(final Query query, final int position) {
         showImage(query, position, true);
@@ -627,6 +639,12 @@ public class MainActivity
 
     private void showNag() {
         showNag(false);
+    }
+
+    @Override
+    public void onSetupComplete() {
+        EyeCandyPreferences.markFirstRun(this);
+        onShowSources();
     }
 
     static class ImageOpenerAdapter extends ArrayAdapter<ResolveInfo> {

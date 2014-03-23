@@ -14,5 +14,5 @@ git tag -a ${VERSION} -m "release - ${VERSION}"
 ./gradlew installRelease
 cp build/apk/eyecandy-release.apk ${APK_PATH}
 
-
+echo
 echo ${APK_PATH}
