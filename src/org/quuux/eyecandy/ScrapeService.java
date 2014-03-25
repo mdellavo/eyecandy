@@ -49,7 +49,7 @@ public class ScrapeService extends IntentService {
     private static int sTaskCount = 0;
 
     private RequestQueue mRequestQueue;
-    private BlockingQueue<Object> mQueue = new LinkedBlockingQueue<Object>();
+    private BlockingQueue<Image> mQueue = new LinkedBlockingQueue<Image>();
     private Thread mWriter;
 
     public ScrapeService() {
@@ -98,10 +98,8 @@ public class ScrapeService extends IntentService {
         scrapeSubreddit(subreddit);
         sTaskCount++;
 
-        for (int i=0; i<4; i++) {
-            scrapeImgur(subreddit, i);
-            sTaskCount++;
-        }
+        scrapeImgur(subreddit);
+        sTaskCount++;
     }
 
     private void scrapeAllSubreddits() {
@@ -145,21 +143,12 @@ public class ScrapeService extends IntentService {
         }
     }
 
-
-    private void touchSubreddit(final Subreddit subreddit) {
-        try {
-            mQueue.put(subreddit);
-        } catch (InterruptedException e) {
-            Log.e(TAG, "error touching subreddit", e);
-        }
-    }
-
     private Image buildImage(final Subreddit subreddit, final ImgurImage i) {
-        return Image.fromImgur(subreddit, i.getUrl(), i.title, i.isAnimated());
+        return Image.fromImgur(subreddit, i.getUrl(), i.title, i.created, i.isAnimated());
     }
 
     private Image buildImage(final Subreddit subreddit, final RedditItem i) {
-        return Image.fromImgur(subreddit, i.url, i.title, false); // FIXME
+        return Image.fromImgur(subreddit, i.url, i.title, i.created, false); // FIXME
     }
 
     private <T> void doScrape(final Class<T> klass, final Subreddit subreddit, final String url, final Response.Listener<T> listener) {
@@ -190,6 +179,7 @@ public class ScrapeService extends IntentService {
         String title;
         String thumbnail;
         String subreddit;
+        long created;
     }
 
     class RedditListItem {
@@ -200,7 +190,7 @@ public class ScrapeService extends IntentService {
     class RedditList {
         List<RedditListItem> children;
         String modhash;
-        String before, adter;
+        String before, after;
 
     }
 
@@ -233,7 +223,7 @@ public class ScrapeService extends IntentService {
 
                         }
 
-                        touchSubreddit(subreddit);
+                        subreddit.setAfter(response.data.after);
                     }
                 }
         );
@@ -250,8 +240,8 @@ public class ScrapeService extends IntentService {
 
     }
 
-    private void scrapeImgur(final Subreddit subreddit, final int page) {
-        final String url = String.format("http://imgur.com/r/%s/new/day/page/%d/hit.json", subreddit.getSubreddit(), page);
+    private void scrapeImgur(final Subreddit subreddit) {
+        final String url = String.format("http://imgur.com/r/%s/new/day/page/%d/hit.json", subreddit.getSubreddit(), subreddit.getPage());
 
         doScrape(ImgurImageList.class,
                 subreddit,
@@ -268,14 +258,10 @@ public class ScrapeService extends IntentService {
                             write(img);
                         }
 
-                        touchSubreddit(subreddit);
+                        subreddit.setPage(subreddit.getPage() + 1);
                     }
                 }
         );
-    }
-
-    private void scrapeImgur(final Subreddit subreddit) {
-        scrapeImgur(subreddit, 0);
     }
 
     private static class ImgurImage {
@@ -287,6 +273,7 @@ public class ScrapeService extends IntentService {
         int height;
         int size;
         String animated;
+        long created;
 
         public String getUrl() {
             return String.format("http://imgur.com/%s%s", hash, ext);
@@ -305,9 +292,9 @@ public class ScrapeService extends IntentService {
     class Writer implements Runnable {
 
         private Session mSession = getSession();
-        private BlockingQueue<Object> mQueue;
+        private BlockingQueue<Image> mQueue;
 
-        public Writer(final BlockingQueue<Object> queue) {
+        public Writer(final BlockingQueue<Image> queue) {
             mQueue = queue;
         }
 
@@ -315,43 +302,17 @@ public class ScrapeService extends IntentService {
         public void run() {
             while (true) {
                 try {
-                    final Object o = mQueue.take();
+                    final Image image = mQueue.take();
 
-                    if (o instanceof Subreddit)
-                        consume((Subreddit)o);
-                    else if (o instanceof Image)
-                        consume((Image)o);
+                    final Image existing = (Image) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).first(null).get();
+                    if (existing == null) {
+                        mSession.add(image);
+                        mSession.commit().get();
+                    }
 
                 } catch (Exception e) {
                     Log.e(TAG, "error processing image from queue - ", e);
                 }
-            }
-        }
-
-        private void consume(final Subreddit subreddit) throws ExecutionException, InterruptedException {
-
-            Log.d(TAG, "Touching subreddit %s", subreddit);
-
-            subreddit.touch();
-            mSession.add(subreddit);
-            mSession.commit().get();
-            onScrapeComplete(subreddit, true);
-
-        }
-
-        private void consume(final Image image) throws ExecutionException, InterruptedException {
-            final Long count = (Long) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).count(null).get();
-            if (count.longValue() == 0) {
-                insertImage(image);
-            }
-        }
-
-        private void insertImage(final Image i) {
-            mSession.add(i);
-            try {
-                mSession.commit().get();
-            } catch (final Exception e) {
-                Log.e(TAG, "error inserting image %s", i);
             }
         }
     }

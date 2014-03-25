@@ -33,6 +33,9 @@ public class Image implements Entity, Serializable {
     private String url;
 
     @Column()
+    private long created;
+
+    @Column()
     private String title;
 
     @Column()
@@ -62,20 +65,23 @@ public class Image implements Entity, Serializable {
     @Column()
     private String subreddit;
 
+    private long getCreated() {
+        return created;
+    }
 
-    protected Image(final Subreddit subreddit, final String url, final String title, final boolean animated, final Status status, final int timesShown) {
+    protected Image(final Subreddit subreddit, final String url, final String title, final long created, final boolean animated, final Status status, final int timesShown) {
         this.subreddit = subreddit.getSubreddit();
         this.url = url;
         this.title = title;
+        this.created = created;
         this.animated = animated;
         this.status = status;
         this.timesShown = timesShown;
     }
 
-    public static Image fromImgur(final Subreddit subreddit, final String url, final String title, final boolean animated) {
-        return new Image(subreddit, url, title, animated, Status.NOT_FETCHED, 0);
+    public static Image fromImgur(final Subreddit subreddit, final String url, final String title, final long created, final boolean animated) {
+        return new Image(subreddit, url, title, created, animated, Status.NOT_FETCHED, 0);
     }
-
 
     @Override
     public int hashCode() {

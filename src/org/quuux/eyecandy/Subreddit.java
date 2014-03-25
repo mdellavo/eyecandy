@@ -27,6 +27,9 @@ public class Subreddit implements Entity, Serializable {
     @Column(unique = true, nullable = false)
     private String subreddit;
 
+    private int page = 1; // for imgur
+    private String after; // for reddit
+
     public Subreddit() {}
 
     public Subreddit(final String subreddit) {
@@ -47,6 +50,22 @@ public class Subreddit implements Entity, Serializable {
 
     public void touch() {
         setLastScrape(System.currentTimeMillis() + RandomGenerator.get().randomInt(0, 1000 * 60 * 5));
+    }
+
+    public void setPage(int page) {
+        this.page = page;
+    }
+
+    public int getPage() {
+        return page;
+    }
+
+    public void setAfter(String after) {
+        this.after = after;
+    }
+
+    public String getAfter() {
+        return after;
     }
 
     public static void add(final Context context, final String subreddit, final FetchListener<Subreddit> listener) {
@@ -96,6 +115,8 @@ public class Subreddit implements Entity, Serializable {
 
     public static void refresh(final Context context, final Subreddit subreddit) {
         subreddit.setLastScrape(0);
+        subreddit.setPage(1);
+        subreddit.setAfter(null);
         ScrapeService.scrapeSubreddit(context, subreddit);
 
     }
