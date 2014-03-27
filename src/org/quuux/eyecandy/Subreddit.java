@@ -27,7 +27,10 @@ public class Subreddit implements Entity, Serializable {
     @Column(unique = true, nullable = false)
     private String subreddit;
 
+    @Column()
     private int page = 1; // for imgur
+
+    @Column()
     private String after; // for reddit
 
     public Subreddit() {}

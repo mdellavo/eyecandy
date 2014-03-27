@@ -276,17 +276,17 @@ public class GalleryFragment
         mThumbnailsAdapter.onScroll(absListView, i, i2, i3);
     }
 
-    public static GalleryFragment newInstance(final Query query) {
+    public static GalleryFragment newInstance(final Query query, final Subreddit subreddit) {
         final GalleryFragment rv = new GalleryFragment();
         final Bundle args = new Bundle();
         if (query != null)
             args.putSerializable("query", query);
+
+        if (subreddit != null)
+            args.putSerializable("subreddit", subreddit);
+
         rv.setArguments(args);
         return rv;
-    }
-
-    public static GalleryFragment newInstance() {
-        return newInstance(null);
     }
 
     private AnimatorSet fade(final View v, final float start, final float end) {
@@ -598,7 +598,25 @@ public class GalleryFragment
                 }
             });
         }
+
+        @Override
+        protected void onLoadComplete() {
+            super.onLoadComplete();
+
+            Log.d(TAG, "onLoadComplete()");
+
+            final Bundle args = getArguments();
+            if (args != null && args.containsKey("subreddit")) {
+                final Subreddit subreddit = (Subreddit) args.getSerializable("subreddit");
+
+                Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
+
+                ScrapeService.scrapeSubreddit(getContext(), subreddit);
+            }
+
+        }
     }
+
 
 
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -608,8 +626,7 @@ public class GalleryFragment
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                if (mThumbnailsAdapter.getCount() == 0)
-                    mThumbnailsAdapter.notifyDataSetChanged();
+                mThumbnailsAdapter.continueLoading();
             }
 
         }

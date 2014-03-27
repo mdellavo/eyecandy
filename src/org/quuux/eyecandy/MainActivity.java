@@ -537,29 +537,29 @@ public class MainActivity
     }
 
     public void showImage(final Subreddit subreddit) {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"created\" DESC");
         showImage(q, 0);
     }
 
 
-    public void showGallery(final Query query, final boolean addToBackStack) {
+    public void showGallery(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
         if (frag == null)
-            frag = GalleryFragment.newInstance(query);
+            frag = GalleryFragment.newInstance(query, subreddit);
         swapFrag(frag, FRAG_GALLERY, addToBackStack);
     }
 
-    public void showGallery(final Query query) {
-        showGallery(query, true);
+    public void showGallery( final Query query, final Subreddit subreddit) {
+        showGallery(query, subreddit, true);
     }
 
     public void showGallery(final Subreddit subreddit) {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("id DESC");
-        showGallery(q);
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"created\" DESC");
+        showGallery(q, subreddit);
     }
 
     private void onShowGallery() {
-        showGallery(null, false);
+        showGallery(null, null, false);
     }
 
     private void onShowSources() {

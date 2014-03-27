@@ -12,6 +12,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.Volley;
 import org.quuux.eyecandy.utils.GsonRequest;
 import org.quuux.eyecandy.utils.OkHttpStack;
+import org.quuux.orm.Connection;
 import org.quuux.orm.Database;
 import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
@@ -74,7 +75,12 @@ public class ScrapeService extends IntentService {
         final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
 
         if (subreddit != null) {
-            dispatchScrape(subreddit);
+            getSession().query(Subreddit.class).filter("subreddit=?", subreddit.getSubreddit()).first(new FetchListener<Subreddit>() {
+                @Override
+                public void onResult(final Subreddit result) {
+                    dispatchScrape(result != null ? result : subreddit);
+                }
+            });
         } else {
             scrapeAllSubreddits();
         }
@@ -92,8 +98,8 @@ public class ScrapeService extends IntentService {
         Log.d(TAG, "%s scraped %s seconds ago - %s",
                 subreddit.getSubreddit(), timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
 
-        if (!doScrape)
-            return;
+//        if (!doScrape)
+//            return;
 
         scrapeSubreddit(subreddit);
         sTaskCount++;
@@ -200,7 +206,14 @@ public class ScrapeService extends IntentService {
     }
 
     private void scrapeSubreddit(final Subreddit subreddit) {
-        final String url = String.format("http://reddit.com/r/%s.json", subreddit.getSubreddit());
+
+        final String url;
+        if (subreddit.getAfter() != null)
+            url = String.format("http://reddit.com/r/%s.json?after=%s", subreddit.getSubreddit(), subreddit.getAfter());
+        else
+            url = String.format("http://reddit.com/r/%s.json", subreddit.getSubreddit());
+
+        Log.d(TAG, "scraping %s", url);
 
         doScrape(RedditPage.class,
                 subreddit,
@@ -224,6 +237,13 @@ public class ScrapeService extends IntentService {
                         }
 
                         subreddit.setAfter(response.data.after);
+
+                        final Connection connection = getSession().getConnection();
+                        connection.beginTransaction();
+                        connection.exec("UPDATE subreddits SET after=? WHERE subreddit=?", new String[]{subreddit.getAfter(), subreddit.getSubreddit()});
+                        connection.commit();
+
+                        onScrapeComplete(subreddit, true);
                     }
                 }
         );
@@ -241,7 +261,9 @@ public class ScrapeService extends IntentService {
     }
 
     private void scrapeImgur(final Subreddit subreddit) {
-        final String url = String.format("http://imgur.com/r/%s/new/day/page/%d/hit.json", subreddit.getSubreddit(), subreddit.getPage());
+        final String url = String.format("http://imgur.com/r/%s/new/day/page/%d/hit.json?scrolled", subreddit.getSubreddit(), subreddit.getPage());
+
+        Log.d(TAG, "scraping %s", url);
 
         doScrape(ImgurImageList.class,
                 subreddit,
@@ -259,6 +281,12 @@ public class ScrapeService extends IntentService {
                         }
 
                         subreddit.setPage(subreddit.getPage() + 1);
+                        final Connection connection = getSession().getConnection();
+                        connection.beginTransaction();
+                        connection.exec("UPDATE subreddits SET page=? WHERE subreddit=?", new String[] { String.valueOf(subreddit.getPage()), subreddit.getSubreddit() });
+                        connection.commit();
+
+                        onScrapeComplete(subreddit, true);
                     }
                 }
         );
@@ -304,8 +332,9 @@ public class ScrapeService extends IntentService {
                 try {
                     final Image image = mQueue.take();
 
-                    final Image existing = (Image) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).first(null).get();
-                    if (existing == null) {
+                    final List<Image> existing = (List<Image>) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).first(null).get();
+
+                    if (existing == null || existing.size() == 0) {
                         mSession.add(image);
                         mSession.commit().get();
                     }
