@@ -3,6 +3,7 @@ package org.quuux.eyecandy;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.text.TextUtils;
 
 import java.io.File;
 
@@ -115,7 +116,7 @@ public class Image implements Entity, Serializable {
     }
 
     public String getThumbnailUrl() {
-        return thumbnailUrl;
+        return !TextUtils.isEmpty(thumbnailUrl) ? thumbnailUrl : null;
     }
 
     public String getTitle() {

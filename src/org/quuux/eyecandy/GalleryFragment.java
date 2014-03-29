@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
-import android.graphics.Movie;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -269,14 +268,14 @@ public class GalleryFragment
 
     @Override
     public void onScrollStateChanged(final AbsListView absListView, final int i) {
-        Log.d(TAG, "onScrollStateChanged(state=%s)", i);
+        //Log.d(TAG, "onScrollStateChanged(state=%s)", i);
 
         mThumbnailsAdapter.onScrollStateChanged(absListView, i);
     }
 
     @Override
     public void onScroll(final AbsListView view, final int firstVisibleItem, final int visibleItemCount, final int totalItemCount) {
-        Log.d(TAG, "onScroll(firstVisibleItem=%s, visibleItemCount=%s, totalItemCount=%s)", firstVisibleItem, visibleItemCount, totalItemCount);
+        //Log.d(TAG, "onScroll(firstVisibleItem=%s, visibleItemCount=%s, totalItemCount=%s)", firstVisibleItem, visibleItemCount, totalItemCount);
         mThumbnailsAdapter.onScroll(view, firstVisibleItem, visibleItemCount, totalItemCount);
     }
 
@@ -604,20 +603,20 @@ public class GalleryFragment
             });
         }
 
+
+
         @Override
         protected void onLoadComplete() {
             super.onLoadComplete();
 
-            Log.d(TAG, "onLoadComplete()");
+            Log.d(TAG, "onLoadComplete(total=%s | count=%s | hasMode=%s)", getTotal(), getCount(), hasMore());
 
             final Bundle args = getArguments();
             if (args != null && args.containsKey("subreddit")) {
                 final Subreddit subreddit = (Subreddit) args.getSerializable("subreddit");
 
-                Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
-
-                if (!mScraping) {
-                    mScraping = true;
+                if (!hasMore()) {
+                    Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
                     ScrapeService.scrapeSubreddit(getContext(), subreddit);
                 }
             }
@@ -632,10 +631,9 @@ public class GalleryFragment
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                mScraping = false;
-                mThumbnailsAdapter.continueLoading();
+                Log.d(TAG, "continue loading...");
+                mThumbnailsAdapter.loadPage();
             }
-
         }
     };
 

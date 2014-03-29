@@ -95,40 +95,6 @@ public class EyeCandyDatabase extends Database {
         super(context, name, version);
     }
 
-    private static void initSources(final Context context, final EyeCandyDatabase db) {
-        final Session session = db.createSession();
-
-        session.query(Subreddit.class).all(new QueryListener<Subreddit>() {
-            @Override
-            public void onResult(final List<Subreddit> subreddits) {
-
-                final Set<String> knownSubreddits = new HashSet<String>();
-
-                if (subreddits != null) {
-                    for (Subreddit subreddit : subreddits) {
-                        knownSubreddits.add(subreddit.getSubreddit());
-                    }
-                }
-
-                for (String s : SUBREDDITS) {
-                    if (!knownSubreddits.contains(s)) {
-                        Log.d(TAG, "populating subreddit %s", s);
-                        final Subreddit subreddit = new Subreddit(s);
-                        session.add(subreddit);
-                        session.commit();
-
-                        final Intent intent = new Intent(context, ScrapeService.class);
-                        intent.putExtra(ScrapeService.EXTRA_SUBREDDIT, subreddit);
-                        context.startService(intent);
-
-                    }
-                }
-
-            }
-        });
-
-    }
-
     public static EyeCandyDatabase getInstance(final Context context) {
 
         if (instance == null) {

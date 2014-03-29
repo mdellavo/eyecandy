@@ -193,7 +193,6 @@ public class MainActivity
             startLeanback();
 
         final IntentFilter filter = new IntentFilter();
-        filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         filter.addAction(ACTION_PURCHASE);
         registerReceiver(mBroadcastReceiver, filter);
 
@@ -539,7 +538,7 @@ public class MainActivity
     }
 
     public void showImage(final Subreddit subreddit) {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"created\" DESC");
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"id\" ASC");
         showImage(q, 0);
     }
 
@@ -557,7 +556,7 @@ public class MainActivity
     }
 
     public void showGallery(final Subreddit subreddit) {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"created\" DESC");
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"id\" ASC");
         showGallery(q, subreddit);
     }
 
@@ -798,10 +797,7 @@ public class MainActivity
 
             final String action = intent.getAction();
 
-            if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
-                final int taskCount = intent.getIntExtra(ScrapeService.EXTRA_TASK_COUNT, -1);
-                Log.d(TAG, "scrape complete, task count = %s", taskCount);
-            } else if (ACTION_PURCHASE.equals(action)) {
+            if (ACTION_PURCHASE.equals(action)) {
                 startPurchase();
             }
 
