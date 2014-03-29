@@ -137,6 +137,16 @@ public class MainActivity
             onFirstRun();
         } else {
             mode = EyeCandyPreferences.getLastNavMode(this);
+
+            //        mHandler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
+//                startService(intent);
+//            }
+//       }, 500);
+
+
         }
 
         actionBar.setSelectedNavigationItem(mode);
@@ -147,14 +157,6 @@ public class MainActivity
         mGestureDetector = new GestureDetector(this, mGestureListener);
 
         setupSystemUi();
-
-//        mHandler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
-//                startService(intent);
-//            }
-//       }, 500);
 
         if (BuildConfig.DEBUG)
             ViewServer.get(this).addWindow(this);
@@ -544,8 +546,9 @@ public class MainActivity
 
     public void showGallery(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
-        if (frag == null)
+        if (frag == null) {
             frag = GalleryFragment.newInstance(query, subreddit);
+        }
         swapFrag(frag, FRAG_GALLERY, addToBackStack);
     }
 

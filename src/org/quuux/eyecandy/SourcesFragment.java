@@ -349,12 +349,15 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
                                 return;
                             }
 
-                            mPicasso
-                                    .load(result.getThumbnailUrl())
-                                    .placeholder(context.getResources().getDrawable(R.drawable.ic_loading))
-                                    .resizeDimen(R.dimen.source_thumbnail, R.dimen.source_thumbnail)
-                                    .centerCrop()
-                                    .into(holder.thumbnail);
+                            final String thumbnailUrl = result.getThumbnailUrl();
+
+                            if (thumbnailUrl != null)
+                                mPicasso
+                                        .load(thumbnailUrl)
+                                        .placeholder(context.getResources().getDrawable(R.drawable.ic_loading))
+                                        .resizeDimen(R.dimen.source_thumbnail, R.dimen.source_thumbnail)
+                                        .centerCrop()
+                                        .into(holder.thumbnail);
                         }
                     });
 

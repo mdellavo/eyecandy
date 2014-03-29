@@ -19,7 +19,7 @@ import java.util.Set;
 public class EyeCandyDatabase extends Database {
 
     private static final String NAME = "eyecandy.db";
-    private static final int VERSION = 12;
+    private static final int VERSION = 13;
     private static final String TAG = Log.buildTag(EyeCandyDatabase.class);
 
     private static EyeCandyDatabase instance = null;
@@ -38,7 +38,6 @@ public class EyeCandyDatabase extends Database {
             "oldschoolcool",
             "aww",
             "perfectloops",
-
             "earthporn",
             "villageporn",
             "cityporn",
@@ -53,16 +52,16 @@ public class EyeCandyDatabase extends Database {
             "movieposterporn",
             "albumartporn",
             "machineporn",
-            //"newsporn",
+            "newsporn",
             "geekporn",
             "bookporn",
-            //"mapporn",
+            "mapporn",
             "adporn",
             "designporn",
             "roomporn",
-            //"militaryporn",
-            //"historyporn",
-            //"quotesporn",
+            "militaryporn",
+            "historyporn",
+            "quotesporn",
             "skyporn",
             "fireporn",
             "infrastructureporn",
@@ -72,23 +71,20 @@ public class EyeCandyDatabase extends Database {
             "architectureporn",
             "artporn",
             "cemeteryporn",
-            //"carporn",
+            "carporn",
             "fractalporn",
             "exposureporn",
-            //"gunporn",
-            //"culinaryporn",
+            "gunporn",
+            "culinaryporn",
             "dessertporn",
             "agricultureporn",
             "boatporn",
             "geologyporn",
             "futureporn",
             "winterporn",
-            "JoshuaTree",
-            "NZPhotos",
-            "EyeCandy",
             "ruralporn",
-            "spaceart"
-            //"foodporn"
+            "spaceart",
+            "foodporn"
     };
 
     static {

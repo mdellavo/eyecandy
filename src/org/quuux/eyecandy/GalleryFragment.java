@@ -587,11 +587,14 @@ public class GalleryFragment
                 }
             };
 
-            mPicasso.load(item.getThumbnailUrl())
-                    .centerCrop()
-                    .placeholder(R.drawable.ic_loading)
-                    .resize(mSize, mSize)
-                    .into(tag.thumbnail, tag.callback);
+            final String thumbnailUrl = item.getThumbnailUrl();
+
+            if (thumbnailUrl != null)
+                mPicasso.load(thumbnailUrl)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_loading)
+                        .resize(mSize, mSize)
+                        .into(tag.thumbnail, tag.callback);
 
             tag.thumbnail.setOnClickListener(new View.OnClickListener() {
                 @Override

@@ -62,6 +62,9 @@ public class Image implements Entity, Serializable {
     @Column()
     private boolean animated;
 
+    @Column
+    private String thumbnailUrl;
+
     @Column()
     private String subreddit;
 
@@ -69,7 +72,7 @@ public class Image implements Entity, Serializable {
         return created;
     }
 
-    protected Image(final Subreddit subreddit, final String url, final String title, final long created, final boolean animated, final Status status, final int timesShown) {
+    protected Image(final Subreddit subreddit, final String url, final String thumbnaillUrl, final String title, final long created, final boolean animated, final Status status, final int timesShown) {
         this.subreddit = subreddit.getSubreddit();
         this.url = url;
         this.title = title;
@@ -77,10 +80,11 @@ public class Image implements Entity, Serializable {
         this.animated = animated;
         this.status = status;
         this.timesShown = timesShown;
+        this.thumbnailUrl = thumbnaillUrl;
     }
 
-    public static Image fromImgur(final Subreddit subreddit, final String url, final String title, final long created, final boolean animated) {
-        return new Image(subreddit, url, title, created, animated, Status.NOT_FETCHED, 0);
+    public static Image fromImgur(final Subreddit subreddit, final String url, final String thumbnailUrl, final String title, final long created, final boolean animated) {
+        return new Image(subreddit, url, thumbnailUrl, title, created, animated, Status.NOT_FETCHED, 0);
     }
 
     @Override
@@ -111,13 +115,7 @@ public class Image implements Entity, Serializable {
     }
 
     public String getThumbnailUrl() {
-
-        final String url = getUrl();
-
-        if (url.startsWith("http://i.imgur.com"))
-            return url.replaceAll(".(\\w+)$", "t.$1");
-
-        return url;
+        return thumbnailUrl;
     }
 
     public String getTitle() {

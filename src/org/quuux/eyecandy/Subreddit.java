@@ -18,6 +18,7 @@ import java.io.Serializable;
 @Table(name="subreddits")
 public class Subreddit implements Entity, Serializable {
 
+    private static final String TAG = Log.buildTag(Subreddit.class);
     @Column(primaryKey = true)
     private long id = -1;
 
@@ -128,8 +129,10 @@ public class Subreddit implements Entity, Serializable {
 
 
     public static void refresh(final Context context, final Subreddit subreddit) {
+        Log.d(TAG, "refreshing %s...", subreddit.getSubreddit());
+
         subreddit.setLastScrape(0);
-        subreddit.setPage(1);
+        subreddit.setPage(0);
         subreddit.setAfter(null);
         ScrapeService.scrapeSubreddit(context, subreddit);
 

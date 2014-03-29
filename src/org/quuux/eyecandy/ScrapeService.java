@@ -71,7 +71,7 @@ public class ScrapeService extends IntentService {
         final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
 
         if (subreddit != null) {
-
+            mScraping.add(subreddit);
 
             getSession().query(Subreddit.class).filter("subreddit=?", subreddit.getSubreddit()).first(new FetchListener<Subreddit>() {
                 @Override
@@ -93,8 +93,11 @@ public class ScrapeService extends IntentService {
         final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
         final boolean doScrape = SCRAPE_INTERVAL == 0 || timeSinceLastScrape > SCRAPE_INTERVAL;
 
-        if (mScraping.contains(subreddit))
+        if (mScraping.contains(subreddit)) {
+            Log.d(TAG, "already scraping %s, aborting!", subreddit.getSubreddit());
+            onScrapeComplete(subreddit, false);
             return;
+        }
 
         Log.d(TAG, "%s scraped %s seconds ago - %s",
                 subreddit.getSubreddit(), timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
@@ -102,7 +105,6 @@ public class ScrapeService extends IntentService {
 //        if (!doScrape)
 //            return;
 
-        mScraping.add(subreddit);
 
         scrapeSubreddit(subreddit);
         sTaskCount++;
@@ -141,20 +143,13 @@ public class ScrapeService extends IntentService {
         mScraping.remove(subreddit);
     }
 
-    private void write(final Image i) {
-        try {
-            mQueue.put(i);
-        } catch (final InterruptedException e) {
-            Log.e(TAG, "error putting image on queue", e);
-        }
-    }
 
     private Image buildImage(final Subreddit subreddit, final ImgurImage i) {
-        return Image.fromImgur(subreddit, i.getUrl(), i.title, i.created, i.isAnimated());
+        return Image.fromImgur(subreddit, i.getUrl(), i.getThumbnail(), i.title, i.created, i.isAnimated());
     }
 
     private Image buildImage(final Subreddit subreddit, final RedditItem i) {
-        return Image.fromImgur(subreddit, i.url, i.title, i.created, false); // FIXME
+        return Image.fromImgur(subreddit, i.url, i.thumbnail, i.title, i.created, false); // FIXME
     }
 
     private <T> void doScrape(final Class<T> klass, final Subreddit subreddit, final String url, final Response.Listener<T> listener) {
@@ -218,8 +213,11 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onResponse(final RedditPage response) {
 
-                        if (response == null)
+                        if (response == null || response.data.children.size() == 0) {
+                            Log.d(TAG, "no images found on reddit!");
+                            onScrapeComplete(subreddit, false);
                             return;
+                        }
 
                         subreddit.setAfter(response.data.after);
 
@@ -245,6 +243,8 @@ public class ScrapeService extends IntentService {
                         session.commit(new FlushListener() {
                             @Override
                             public void onFlushed() {
+                                Log.d(TAG, "added %d images from reddit(%s)", response.data.children.size(), subreddit.getSubreddit());
+
                                 onScrapeComplete(subreddit, true);
                             }
                         });
@@ -276,8 +276,11 @@ public class ScrapeService extends IntentService {
                     @Override
                     public void onResponse(final ImgurImageList response) {
 
-                        if (response == null)
+                        if (response == null || response.data.size() == 0) {
+                            Log.d(TAG, "no images found on imgur!");
+                            onScrapeComplete(subreddit, false);
                             return;
+                        }
 
                         subreddit.setPage(subreddit.getPage() + 1);
 
@@ -296,7 +299,7 @@ public class ScrapeService extends IntentService {
                         session.commit(new FlushListener() {
                             @Override
                             public void onFlushed() {
-                                Log.d(TAG, "added %d images", response.data.size());
+                                Log.d(TAG, "added %d images from imgur(%s)", response.data.size(), subreddit.getSubreddit());
                                 onScrapeComplete(subreddit, true);
                             }
                         });
@@ -318,9 +321,9 @@ public class ScrapeService extends IntentService {
         long created;
 
         public String getUrl() {
-            return String.format("http://imgur.com/%s%s", hash, ext);
+            return String.format("http://i.imgur.com/%s%s", hash, ext);
         }
-
+        public String getThumbnail() {return String.format("http://i.imgur.com/%st%s", hash, ext);}
 
         public boolean isAnimated() {
             return "1".equals(animated);
@@ -329,35 +332,6 @@ public class ScrapeService extends IntentService {
 
     private static class ImgurImageList {
         public List<ImgurImage> data = new ArrayList<ImgurImage>();
-    }
-
-    class Writer implements Runnable {
-
-        private Session mSession = getSession();
-        private BlockingQueue<Image> mQueue;
-
-        public Writer(final BlockingQueue<Image> queue) {
-            mQueue = queue;
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    final Image image = mQueue.take();
-
-                    final List<Image> existing = (List<Image>) mSession.query(Image.class).filter("images.url = ?", image.getUrl()).first(null).get();
-
-                    if (existing == null || existing.size() == 0) {
-                        mSession.add(image);
-                        mSession.commit().get();
-                    }
-
-                } catch (Exception e) {
-                    Log.e(TAG, "error processing image from queue - ", e);
-                }
-            }
-        }
     }
 
 }
