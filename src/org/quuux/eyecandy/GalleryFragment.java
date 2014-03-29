@@ -328,6 +328,7 @@ public class GalleryFragment
     // FIXME load backing?
     private void onZoomedImageLoadComplete() {
         fadeOut(mProgressBar);
+
     }
 
     private void loadZoomedImage(final Thumbnailholder tag, final Rect bounds) {
@@ -603,20 +604,19 @@ public class GalleryFragment
             });
         }
 
-
-
         @Override
         protected void onLoadComplete() {
             super.onLoadComplete();
 
             Log.d(TAG, "onLoadComplete(total=%s | count=%s | hasMode=%s)", getTotal(), getCount(), hasMore());
 
-            final Bundle args = getArguments();
-            if (args != null && args.containsKey("subreddit")) {
-                final Subreddit subreddit = (Subreddit) args.getSerializable("subreddit");
-
-                if (!hasMore()) {
+            if (!hasMore()) {
+                final Bundle args = getArguments();
+                if (args != null && args.containsKey("subreddit")) {
+                    final Subreddit subreddit = (Subreddit) args.getSerializable("subreddit");
                     Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
+                    mProgressBar.setVisibility(View.VISIBLE);
+                    fadeIn(mProgressBar);
                     ScrapeService.scrapeSubreddit(getContext(), subreddit);
                 }
             }
@@ -631,6 +631,7 @@ public class GalleryFragment
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                fadeOut(mProgressBar);
                 Log.d(TAG, "continue loading...");
                 mThumbnailsAdapter.loadPage();
             }
