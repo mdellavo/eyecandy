@@ -39,6 +39,17 @@ public class Subreddit implements Entity, Serializable {
         this.subreddit = subreddit;
     }
 
+
+    @Override
+    public boolean equals(final Object o) {
+        return o instanceof Subreddit && ((Subreddit)o).getSubreddit().equals(getSubreddit());
+    }
+
+    @Override
+    public int hashCode() {
+        return subreddit.hashCode();
+    }
+
     public String getSubreddit() {
         return subreddit;
     }

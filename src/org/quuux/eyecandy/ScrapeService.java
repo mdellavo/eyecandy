@@ -9,7 +9,10 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.RequestFuture;
 import com.android.volley.toolbox.Volley;
+import com.squareup.okhttp.OkHttpClient;
+
 import org.quuux.eyecandy.utils.GsonRequest;
 import org.quuux.eyecandy.utils.OkHttpStack;
 import org.quuux.orm.Connection;
@@ -22,6 +25,7 @@ import org.quuux.orm.QueryListener;
 import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -53,18 +57,10 @@ public class ScrapeService extends IntentService {
     private BlockingQueue<Image> mQueue = new LinkedBlockingQueue<Image>();
     private Thread mWriter;
 
+    public Set<Subreddit> mScraping = new HashSet<Subreddit>();
+
     public ScrapeService() {
         super(ScrapeService.class.getName());
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-
-        mWriter = new Thread(new Writer(mQueue));
-        mWriter.setDaemon(true);
-        mWriter.setPriority(Thread.MIN_PRIORITY);
-        mWriter.start();
     }
 
     @Override
@@ -75,6 +71,8 @@ public class ScrapeService extends IntentService {
         final Subreddit subreddit = (Subreddit) intent.getSerializableExtra(EXTRA_SUBREDDIT);
 
         if (subreddit != null) {
+
+
             getSession().query(Subreddit.class).filter("subreddit=?", subreddit.getSubreddit()).first(new FetchListener<Subreddit>() {
                 @Override
                 public void onResult(final Subreddit result) {
@@ -95,11 +93,16 @@ public class ScrapeService extends IntentService {
         final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
         final boolean doScrape = SCRAPE_INTERVAL == 0 || timeSinceLastScrape > SCRAPE_INTERVAL;
 
+        if (mScraping.contains(subreddit))
+            return;
+
         Log.d(TAG, "%s scraped %s seconds ago - %s",
                 subreddit.getSubreddit(), timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
 
 //        if (!doScrape)
 //            return;
+
+        mScraping.add(subreddit);
 
         scrapeSubreddit(subreddit);
         sTaskCount++;
@@ -129,16 +132,13 @@ public class ScrapeService extends IntentService {
 
     public void onScrapeComplete(final Subreddit subreddit, final boolean status) {
         sTaskCount--;
-
         final Intent intent = new Intent(ACTION_SCRAPE_COMPLETE);
         intent.putExtra(EXTRA_SUBREDDIT, subreddit);
         intent.putExtra(EXTRA_TASK_STATUS, status);
         intent.putExtra(EXTRA_TASK_COUNT, sTaskCount);
         sendBroadcast(intent);
 
-        if (sTaskCount == 0) {
-            stopSelf();
-        }
+        mScraping.remove(subreddit);
     }
 
     private void write(final Image i) {
@@ -158,19 +158,15 @@ public class ScrapeService extends IntentService {
     }
 
     private <T> void doScrape(final Class<T> klass, final Subreddit subreddit, final String url, final Response.Listener<T> listener) {
+
         final GsonRequest<T> request = new GsonRequest<T>(klass, Request.Method.GET, url, listener, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(final VolleyError error) {
                 Log.d(TAG, "Error scraping %s - %s", url, error.getMessage());
                 onScrapeComplete(subreddit, false);
             }
-        }) {
+        });
 
-            @Override
-            public Priority getPriority() {
-                return Priority.LOW;
-            }
-        };
         mRequestQueue.add(request);
     }
 
@@ -225,25 +221,33 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
+                        subreddit.setAfter(response.data.after);
+
+                        final Connection connection = getSession().getConnection();
+                        connection.beginTransaction();
+                        connection.exec(
+                                "UPDATE subreddits SET after=? WHERE subreddit=?",
+                                new String[]{subreddit.getAfter(), subreddit.getSubreddit()}
+                        );
+                        connection.commit();
+
+                        final Session session = getSession();
                         for(final RedditListItem i : response.data.children) {
 
                             final boolean isImage = isImage(i.data.url);
                             final boolean isImgur = i.data.url.contains("imgur.com");
                             if (isImage && !isImgur) {
                                 final Image img = buildImage(subreddit, i.data);
-                                write(img);
+                                session.add(img);
                             }
 
                         }
-
-                        subreddit.setAfter(response.data.after);
-
-                        final Connection connection = getSession().getConnection();
-                        connection.beginTransaction();
-                        connection.exec("UPDATE subreddits SET after=? WHERE subreddit=?", new String[]{subreddit.getAfter(), subreddit.getSubreddit()});
-                        connection.commit();
-
-                        onScrapeComplete(subreddit, true);
+                        session.commit(new FlushListener() {
+                            @Override
+                            public void onFlushed() {
+                                onScrapeComplete(subreddit, true);
+                            }
+                        });
                     }
                 }
         );
@@ -275,18 +279,28 @@ public class ScrapeService extends IntentService {
                         if (response == null)
                             return;
 
-                        for (final ImgurImage i : response.data) {
-                            final Image img = buildImage(subreddit, i);
-                            write(img);
-                        }
-
                         subreddit.setPage(subreddit.getPage() + 1);
+
                         final Connection connection = getSession().getConnection();
                         connection.beginTransaction();
-                        connection.exec("UPDATE subreddits SET page=? WHERE subreddit=?", new String[] { String.valueOf(subreddit.getPage()), subreddit.getSubreddit() });
+                        connection.exec("UPDATE subreddits SET page=? WHERE subreddit=?", new String[]{String.valueOf(subreddit.getPage()), subreddit.getSubreddit()});
                         connection.commit();
 
-                        onScrapeComplete(subreddit, true);
+                        final Session session = getSession();
+
+                        for (final ImgurImage i : response.data) {
+                            final Image img = buildImage(subreddit, i);
+                            session.add(img);
+                        }
+
+                        session.commit(new FlushListener() {
+                            @Override
+                            public void onFlushed() {
+                                Log.d(TAG, "added %d images", response.data.size());
+                                onScrapeComplete(subreddit, true);
+                            }
+                        });
+
                     }
                 }
         );

@@ -11,10 +11,7 @@ import java.io.File;
 import java.io.IOException;
 
 public class EyeCandyPicasso {
-    private static final String TAG = Log.buildTag(EyeCandyPicasso
-
-
-            .class);
+    private static final String TAG = Log.buildTag(EyeCandyPicasso.class);
 
     private static Picasso sPicasso;
 

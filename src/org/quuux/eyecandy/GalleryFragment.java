@@ -54,6 +54,7 @@ public class GalleryFragment
 
 
     private static final String TAG = Log.buildTag(GalleryFragment.class);
+    private boolean mScraping;
 
     public static interface Listener {
         void showImage(Query query, int position);
@@ -268,12 +269,15 @@ public class GalleryFragment
 
     @Override
     public void onScrollStateChanged(final AbsListView absListView, final int i) {
+        Log.d(TAG, "onScrollStateChanged(state=%s)", i);
+
         mThumbnailsAdapter.onScrollStateChanged(absListView, i);
     }
 
     @Override
-    public void onScroll(final AbsListView absListView, final int i, final int i2, final int i3) {
-        mThumbnailsAdapter.onScroll(absListView, i, i2, i3);
+    public void onScroll(final AbsListView view, final int firstVisibleItem, final int visibleItemCount, final int totalItemCount) {
+        Log.d(TAG, "onScroll(firstVisibleItem=%s, visibleItemCount=%s, totalItemCount=%s)", firstVisibleItem, visibleItemCount, totalItemCount);
+        mThumbnailsAdapter.onScroll(view, firstVisibleItem, visibleItemCount, totalItemCount);
     }
 
     public static GalleryFragment newInstance(final Query query, final Subreddit subreddit) {
@@ -569,8 +573,6 @@ public class GalleryFragment
         @Override
         protected void bindView(final Context context, final Image item, final View view, final ViewGroup parent) {
 
-            Log.d(TAG, "binding item %s (%s)", item.getUrl(), item.getThumbnailUrl());
-
             final Thumbnailholder tag = (Thumbnailholder) view.getTag();
             tag.image = item;
             tag.animated.setVisibility(View.GONE);
@@ -611,13 +613,14 @@ public class GalleryFragment
 
                 Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
 
-                ScrapeService.scrapeSubreddit(getContext(), subreddit);
+                if (!mScraping) {
+                    mScraping = true;
+                    ScrapeService.scrapeSubreddit(getContext(), subreddit);
+                }
             }
 
         }
     }
-
-
 
     final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
@@ -626,6 +629,7 @@ public class GalleryFragment
 
             final String action = intent.getAction();
             if (ScrapeService.ACTION_SCRAPE_COMPLETE.equals(action)) {
+                mScraping = false;
                 mThumbnailsAdapter.continueLoading();
             }
 

@@ -14,6 +14,8 @@ import com.android.volley.toolbox.HttpClientStack;
 import com.android.volley.toolbox.HttpStack;
 import com.android.volley.toolbox.HurlStack;
 import com.android.volley.toolbox.Volley;
+import com.squareup.okhttp.OkHttpClient;
+
 import org.quuux.eyecandy.utils.OkHttpStack;
 
 import java.io.File;
@@ -22,6 +24,7 @@ public class EyeCandyVolley extends Volley {
 
     private static final int CACHE_SIZE = 50 * 1024 * 1024;
     private static RequestQueue sRequestQueue;
+    private static OkHttpClient sClient;
 
     public static RequestQueue getRequestQueue(final Context context) {
         if (sRequestQueue == null) {
@@ -36,7 +39,8 @@ public class EyeCandyVolley extends Volley {
             } catch (PackageManager.NameNotFoundException e) {
             }
 
-            HttpStack stack = new OkHttpStack(context);
+            sClient = new OkHttpClient();
+            HttpStack stack = new OkHttpStack(context, sClient);
             Network network = new BasicNetwork(stack);
 
             sRequestQueue= new RequestQueue(new DiskBasedCache(cacheDir, CACHE_SIZE), network);
@@ -47,5 +51,7 @@ public class EyeCandyVolley extends Volley {
         return sRequestQueue;
     }
 
-
+    public static OkHttpClient getClient() {
+        return sClient;
+    }
 }

@@ -31,15 +31,6 @@ public class OkHttpStack extends HurlStack {
             throw new NullPointerException("Client must not be null.");
         }
         this.client = client;
-
-        final File cacheDir = new File(context.getExternalCacheDir(), "okhttp");
-
-        try {
-            client.setResponseCache(new HttpResponseCache(cacheDir, CACHE_SIZE));
-        } catch (IOException e) {
-            Log.d(TAG, "Could not set cache " + cacheDir, e);
-        }
-
     }
 
     @Override protected HttpURLConnection createConnection(URL url) throws IOException {
