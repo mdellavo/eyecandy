@@ -296,7 +296,7 @@ public class GalleryFragment
         final AnimatorSet s = new AnimatorSet();
 
         s.play(ObjectAnimator.ofFloat(v, "alpha", start, end));
-        s.setDuration(mShortAnimationDuration);
+        s.setDuration(mShortAnimationDuration * 3);
         s.setInterpolator(new DecelerateInterpolator());
 
         s.addListener(new AnimatorListenerAdapter() {
@@ -615,6 +615,7 @@ public class GalleryFragment
                 if (args != null && args.containsKey("subreddit")) {
                     final Subreddit subreddit = (Subreddit) args.getSerializable("subreddit");
                     Log.d(TAG, "requesting more - %s", subreddit.getSubreddit());
+                    ViewHelper.setAlpha(mProgressBar, 0);
                     mProgressBar.setVisibility(View.VISIBLE);
                     fadeIn(mProgressBar);
                     ScrapeService.scrapeSubreddit(getContext(), subreddit);
