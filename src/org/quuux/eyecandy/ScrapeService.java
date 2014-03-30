@@ -21,17 +21,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class ScrapeService extends IntentService {
 
     private static final String TAG = Log.buildTag(ScrapeService.class);
-    private static final long SCRAPE_INTERVAL = 1000 * 60 * 60 * 2;
+
+    private static final long SCRAPE_INTERVAL = 1000 * 60 * 5;
 
     public static String ACTION_SCRAPE_COMPLETE = "org.quuux.eyecandy.intent.action.SCRAPE_COMPLETE";
     public static String EXTRA_SUBREDDIT = "subreddit";
-    public static final String EXTRA_NUM_SCRAPED = "num-scraped";
-    public static final String EXTRA_TASK_COUNT = "task-count";
     public static final String EXTRA_TASK_STATUS = "task-status";
+
     private Session mSession;
 
     public ScrapeService() {
@@ -83,27 +84,20 @@ public class ScrapeService extends IntentService {
     }
 
     private void dispatchScrape(final Subreddit subreddit) {
-        final long timeSinceLastScrape = System.currentTimeMillis() - subreddit.getLastScrape();
-        final boolean doScrape = SCRAPE_INTERVAL == 0 || timeSinceLastScrape > SCRAPE_INTERVAL;
 
-        Log.d(TAG, "%s scraped %s seconds ago - %s",
-                subreddit.getSubreddit(), timeSinceLastScrape / 1000, doScrape ? "scraping" : "skipping");
+        final long t1 = System.currentTimeMillis();
 
-//        if (!doScrape)
-//            return;
+        Log.d(TAG, "Starting scrape of %s (page=%s / after=%s)...", subreddit.getSubreddit(), subreddit.getPage(), subreddit.getAfter());
 
         final Runnable[] tasks = new Runnable[] {
                 new SubredditScrapeTask(subreddit),
                 new ImgurScrapeTask(subreddit)
         };
         final List<Thread> threads = new ArrayList<Thread>();
-
-        final long t1 = System.currentTimeMillis();
         for (final Runnable task : tasks) {
             final Thread thread = new Thread(task);
             thread.start();
             threads.add(thread);
-            Log.d(TAG, "Started %s", task.getClass().getSimpleName());
         }
 
         for (final Thread thread : threads) {
@@ -114,13 +108,15 @@ public class ScrapeService extends IntentService {
             }
         }
 
+        touchSubreddit(subreddit, System.currentTimeMillis());
+
         final long t2 = System.currentTimeMillis();
         Log.d(TAG, "Scrape of %s complete (took %sms)", subreddit.getSubreddit(), t2-t1);
     }
 
-    private List<Subreddit> getAllSubreddits() {
+    private List<Subreddit> getExpiredSubreddits(final long age) {
         try {
-            return (List<Subreddit>) mSession.query(Subreddit.class).all(null).get();
+            return (List<Subreddit>) mSession.query(Subreddit.class).filter("lastScrape < ?", new String[] {String.valueOf(age)}).all(null).get();
         } catch (Exception e) {
             Log.e(TAG, "error getting subreddits", e);
         }
@@ -128,16 +124,57 @@ public class ScrapeService extends IntentService {
         return null;
     }
 
-    private void scrapeAllSubreddits() {
+    private void touchSubreddit(final Subreddit subreddit, final long ts) {
+        final Connection conn = mSession.getConnection();
+        conn.beginTransaction();
+        conn.exec(
+                "UPDATE subreddits SET lastScrape=? WHERE subreddit=?",
+                new String[]{
+                        String.valueOf(ts),
+                        subreddit.getSubreddit()
+                }
+        );
+        conn.commit();
+    }
 
-        final List<Subreddit> subreddits = getAllSubreddits();
-        if (subreddits == null) {
-            Log.e(TAG, "no subreddits to scrape!");
+    private void refreshSubreddit(final Subreddit subreddit) {
+        final Connection conn = mSession.getConnection();
+        conn.beginTransaction();
+        conn.exec(
+                "UPDATE subreddits SET lastScrape=?,page=?,after=? WHERE subreddit=?",
+                new String[] {
+                        String.valueOf(System.currentTimeMillis()),
+                        String.valueOf(0),
+                        null,
+                        subreddit.getSubreddit()
+                }
+        );
+        conn.commit();
+
+        try {
+            mSession.query(Image.class).filter("subreddit=?", new String[] {subreddit.getSubreddit()}).delete(null).get();
+        } catch (Exception e) {
+            Log.e(TAG, "Error clearing images from subreddit", e);
+        }
+    }
+
+    private void scrapeAllSubreddits() {
+        final long age = System.currentTimeMillis() - SCRAPE_INTERVAL;
+
+        final List<Subreddit> subreddits = getExpiredSubreddits(age);
+        if (subreddits == null || subreddits.size() == 0) {
+            Log.e(TAG, "no expired subreddits to scrape!");
             return;
         }
 
+
         for (final Subreddit subreddit : subreddits) {
-            dispatchScrape(subreddit);
+
+            Log.d(TAG, "Subreddit %s was last scraped %dms ago, scrapping...",
+                    subreddit.getSubreddit(), System.currentTimeMillis() - subreddit.getLastScrape());
+
+            refreshSubreddit(subreddit);
+            scrapeSubreddit(this, subreddit);
         }
     }
 
@@ -240,6 +277,8 @@ public class ScrapeService extends IntentService {
                     path.endsWith(".png") );
 
         }
+
+
 
         void updateSubreddit(final String sql, final String[] args) {
             final Connection conn = getSession().getConnection();

@@ -163,6 +163,7 @@ public class MainActivity
             onFirstRun();
         } else {
             mode = MODE_SOURCES;
+            checkRefresh();
             // FIXME refresh
         }
 
@@ -185,6 +186,13 @@ public class MainActivity
         mMediaRouteSelector = new MediaRouteSelector.Builder()
                 .addControlCategory(CastMediaControlIntent.categoryForCast(getString(R.string.cast_application_id)))
                 .build();
+
+
+
+    }
+
+    private void checkRefresh() {
+        ScrapeService.scrapeSubreddit(this, null);
     }
 
     private void onFirstRun() {
@@ -1031,16 +1039,15 @@ public class MainActivity
         Log.d(TAG, "Cast Init!!!");
 
         Cast.CastOptions.Builder apiOptionsBuilder = Cast.CastOptions
-                .builder(mSelectedDevice, mCastClientListener);
-
-        if (BuildConfig.DEBUG)
-            apiOptionsBuilder = apiOptionsBuilder.setDebuggingEnabled();
+                .builder(mSelectedDevice, mCastClientListener)
+                .setVerboseLoggingEnabled(BuildConfig.DEBUG);
 
         mApiClient = new GoogleApiClient.Builder(this)
                 .addApi(Cast.API, apiOptionsBuilder.build())
                 .addConnectionCallbacks(mConnectionCallbacks)
                 .addOnConnectionFailedListener(mConnectionFailedListener)
                 .build();
+
         mApiClient.connect();
         mRemoteMediaPlayer = new RemoteMediaPlayer();
     }
@@ -1067,7 +1074,7 @@ public class MainActivity
 
         Log.d(TAG, "casting image %s...", image.getUrl());
 
-        final MediaMetadata mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_PHOTO);
+        final MediaMetadata mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_MOVIE);
         mediaMetadata.putString(MediaMetadata.KEY_TITLE, image.getTitle());
         final MediaInfo mediaInfo = new MediaInfo.Builder(image.getUrl())
                 .setContentType(image.getUrl().endsWith(".gif") ? "image/gif" : "image/jpeg")
