@@ -31,12 +31,12 @@ public class EyeCandyArtSource extends MuzeiArtSource {
                         .imageUri(Uri.parse(image.getUrl()))
                         .title(image.getTitle())
                         .byline(image.getSubreddit())
-                        .viewIntent(new Intent(Intent.ACTION_VIEW,
-                                Uri.parse(image.getUrl())))
+                        .viewIntent(new Intent(Intent.ACTION_VIEW, Uri.parse(image.getUrl())))
                         .build();
 
                 publishArtwork(artwork);
-                scheduleUpdate(UPDATE_PERIOD);
+                
+                scheduleUpdate(System.currentTimeMillis() + UPDATE_PERIOD);
             }
         });
 
