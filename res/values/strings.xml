@@ -49,4 +49,5 @@
     <string name="done">Done!</string>
     <string name="add_subreddit_hint">earthporn</string>
     <string name="media_route_menu_title">Cast!</string>
+    <string name="app_description">Images from Reddit and Imgur</string>
 </resources>
