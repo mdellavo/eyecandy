@@ -70,12 +70,8 @@ public class AnimatedImageDrawable extends Drawable implements Drawable.Callback
     public void draw(final Canvas canvas) {
         final Bitmap bitmap = mDecoder.getFrame(mFrame);
         canvas.drawBitmap(bitmap, 0, 0, null);
-
         final int delay = Math.max(mDecoder.getDelay(mFrame), 1000 / mDecoder.getFrameCount());
-
         mHandler.postDelayed(mCallback, delay);
-        Log.d(TAG, "delay = %s", delay);
-
         mFrame = (mFrame + 1) % mDecoder.getFrameCount();
     }
 

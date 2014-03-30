@@ -66,6 +66,7 @@ public class ViewerFragment
         void setSelectedNavigationItemSilent(int pos);
         boolean onLeanbackTouch(MotionEvent ev);
         void openImage(Image image);
+        void castImage(Image image);
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);

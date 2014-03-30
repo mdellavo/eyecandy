@@ -30,8 +30,12 @@ import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.MediaRouteActionProvider;
+import android.support.v7.media.MediaRouteSelector;
+import android.support.v7.media.MediaRouter;
 import android.text.Html;
 import android.view.*;
 import android.widget.ArrayAdapter;
@@ -44,8 +48,18 @@ import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.cast.ApplicationMetadata;
+import com.google.android.gms.cast.Cast;
+import com.google.android.gms.cast.CastDevice;
+import com.google.android.gms.cast.CastMediaControlIntent;
+import com.google.android.gms.cast.MediaInfo;
+import com.google.android.gms.cast.MediaMetadata;
+import com.google.android.gms.cast.RemoteMediaPlayer;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
 import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.*;
 import com.nineoldandroids.view.ViewPropertyAnimator;
@@ -53,8 +67,11 @@ import com.nineoldandroids.view.ViewPropertyAnimator;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.quuux.eyecandy.utils.ViewServer;
+import org.quuux.orm.Entity;
+import org.quuux.orm.FetchListener;
 import org.quuux.orm.Query;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -104,6 +121,15 @@ public class MainActivity
     private static boolean sNagShown;
     private Set<String> mPurchases = Collections.<String>emptySet();
 
+    private MediaRouter mMediaRouter;
+    private MediaRouteSelector mMediaRouteSelector;
+    private CastDevice mSelectedDevice;
+    private GoogleApiClient mApiClient;
+    private RemoteMediaPlayer mRemoteMediaPlayer;
+    private boolean mWaitingForReconnect;
+    private boolean mCasting;
+
+
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
@@ -136,17 +162,8 @@ public class MainActivity
             mode = MODE_SETUP;
             onFirstRun();
         } else {
-            mode = EyeCandyPreferences.getLastNavMode(this);
-
-            //        mHandler.postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                final Intent intent = new Intent(MainActivity.this, ScrapeService.class);
-//                startService(intent);
-//            }
-//       }, 500);
-
-
+            mode = MODE_SOURCES;
+            // FIXME refresh
         }
 
         actionBar.setSelectedNavigationItem(mode);
@@ -163,6 +180,11 @@ public class MainActivity
 
         mPurchases = EyeCandyPreferences.getPurchases(this);
         onPurchasesUpdated();
+
+        mMediaRouter = MediaRouter.getInstance(getApplicationContext());
+        mMediaRouteSelector = new MediaRouteSelector.Builder()
+                .addControlCategory(CastMediaControlIntent.categoryForCast(getString(R.string.cast_application_id)))
+                .build();
     }
 
     private void onFirstRun() {
@@ -199,6 +221,11 @@ public class MainActivity
         mAdView.resume();
 
         checkPlayServices();
+
+        mMediaRouter.addCallback(mMediaRouteSelector, mMediaRouterCallback,
+                MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+
+
     }
 
     private void checkPlayServices() {
@@ -211,6 +238,7 @@ public class MainActivity
 
     @Override
     protected void onPause() {
+        mMediaRouter.removeCallback(mMediaRouterCallback);
         super.onPause();
         unregisterReceiver(mBroadcastReceiver);
         mAdView.pause();
@@ -271,6 +299,13 @@ public class MainActivity
 
     @Override
     public boolean onCreateOptionsMenu(final Menu menu) {
+        getMenuInflater().inflate(R.menu.cast, menu);
+
+        final MenuItem mediaRouteMenuItem = menu.findItem(R.id.media_route_menu_item);
+        final MediaRouteActionProvider mediaRouteActionProvider =
+                (MediaRouteActionProvider) MenuItemCompat.getActionProvider(mediaRouteMenuItem);
+        mediaRouteActionProvider.setRouteSelector(mMediaRouteSelector);
+
         getMenuInflater().inflate(R.menu.nag, menu);
         return super.onCreateOptionsMenu(menu);
     }
@@ -278,7 +313,7 @@ public class MainActivity
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
 
-        boolean rv = false;
+        boolean rv;
         switch (item.getItemId()) {
             case R.id.unlock:
                 showNag(true);
@@ -549,6 +584,9 @@ public class MainActivity
             frag = GalleryFragment.newInstance(query, subreddit);
         }
         swapFrag(frag, FRAG_GALLERY, addToBackStack);
+
+        if (subreddit != null)
+            castImage(subreddit);
     }
 
     public void showGallery( final Query query, final Subreddit subreddit) {
@@ -623,7 +661,12 @@ public class MainActivity
     }
 
     private void loadAds() {
-        AdRequest adRequest = new AdRequest.Builder().build();
+        AdRequest.Builder builder = new AdRequest.Builder();
+        if (BuildConfig.DEBUG) {
+            builder.addTestDevice(getString(R.string.test_device_id));
+        }
+
+        AdRequest adRequest = builder.build();
         mAdView.loadAd(adRequest);
         mAdView.setVisibility(View.VISIBLE);
     }
@@ -983,5 +1026,183 @@ public class MainActivity
             onPurchaseResult(purchases);
         }
     }
+
+    void castInit() {
+        Log.d(TAG, "Cast Init!!!");
+
+        Cast.CastOptions.Builder apiOptionsBuilder = Cast.CastOptions
+                .builder(mSelectedDevice, mCastClientListener);
+
+        if (BuildConfig.DEBUG)
+            apiOptionsBuilder = apiOptionsBuilder.setDebuggingEnabled();
+
+        mApiClient = new GoogleApiClient.Builder(this)
+                .addApi(Cast.API, apiOptionsBuilder.build())
+                .addConnectionCallbacks(mConnectionCallbacks)
+                .addOnConnectionFailedListener(mConnectionFailedListener)
+                .build();
+        mApiClient.connect();
+        mRemoteMediaPlayer = new RemoteMediaPlayer();
+    }
+
+    void castTeardown() {
+        if (mApiClient != null) {
+            if (mApiClient.isConnected()) {
+                Cast.CastApi.stopApplication(mApiClient);
+                mApiClient.disconnect();
+            }
+            mApiClient = null;
+        }
+        mSelectedDevice = null;
+        mWaitingForReconnect = false;
+        mCasting = false;
+        mRemoteMediaPlayer = null;
+    }
+
+    public void castImage(final Image image) {
+        if (!mCasting) {
+            Log.d(TAG, "Not casting image %s", image);
+            return;
+        }
+
+        Log.d(TAG, "casting image %s...", image.getUrl());
+
+        final MediaMetadata mediaMetadata = new MediaMetadata(MediaMetadata.MEDIA_TYPE_PHOTO);
+        mediaMetadata.putString(MediaMetadata.KEY_TITLE, image.getTitle());
+        final MediaInfo mediaInfo = new MediaInfo.Builder(image.getUrl())
+                .setContentType(image.getUrl().endsWith(".gif") ? "image/gif" : "image/jpeg")
+                .setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+                .setMetadata(mediaMetadata)
+                .build();
+
+        mRemoteMediaPlayer.load(mApiClient, mediaInfo, true)
+                .setResultCallback(new ResultCallback<RemoteMediaPlayer.MediaChannelResult>() {
+                    @Override
+                    public void onResult(RemoteMediaPlayer.MediaChannelResult result) {
+                        if (result.getStatus().isSuccess()) {
+                            Log.d(TAG, "%s loaded successfully", image.getUrl());
+                        }
+                    }
+                });
+    }
+
+    void castImage() {
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("RANDOM()");
+        q.first(new FetchListener<Image>() {
+            @Override
+            public void onResult(final Image image) {
+                castImage(image);
+            }
+        });
+    }
+
+    void castImage(final Subreddit subreddit) {
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", new String[] {subreddit.getSubreddit()}).orderBy("RANDOM()");
+        q.first(new FetchListener<Image>() {
+            @Override
+            public void onResult(final Image image) {
+                castImage(image);
+            }
+        });
+    }
+
+    final GoogleApiClient.ConnectionCallbacks mConnectionCallbacks = new GoogleApiClient.ConnectionCallbacks() {
+
+        @Override
+        public void onConnected(final Bundle bundle) {
+            Log.d(TAG, "onConnected(bundle=%s)", bundle);
+
+            if (mWaitingForReconnect) {
+                mWaitingForReconnect = false;
+                castImage();
+            } else {
+
+
+                try {
+                    Cast.CastApi.launchApplication(mApiClient, getString(R.string.cast_application_id), false)
+                            .setResultCallback(
+                                    new ResultCallback<Cast.ApplicationConnectionResult>() {
+                                        @Override
+                                        public void onResult(final Cast.ApplicationConnectionResult result) {
+
+                                            Log.d(TAG, "onApplicationConnectionResult = %s", result);
+
+                                            final Status status = result.getStatus();
+                                            if (status.isSuccess()) {
+
+                                                final ApplicationMetadata applicationMetadata =
+                                                        result.getApplicationMetadata();
+                                                final String sessionId = result.getSessionId();
+                                                final String applicationStatus = result.getApplicationStatus();
+                                                final boolean wasLaunched = result.getWasLaunched();
+
+                                                mCasting = true;
+
+                                                castImage();
+
+                                            } else {
+                                                castTeardown();
+                                            }
+                                        }
+                                    });
+
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to launch application", e);
+                }
+            }
+        }
+
+        @Override
+        public void onConnectionSuspended(final int cause) {
+            Log.d(TAG, "onConnectionSuspended(cause=%s)", cause);
+            mWaitingForReconnect = true;
+        }
+    };
+
+    final GoogleApiClient.OnConnectionFailedListener mConnectionFailedListener = new GoogleApiClient.OnConnectionFailedListener() {
+        @Override
+        public void onConnectionFailed(final ConnectionResult connectionResult) {
+            Log.d(TAG, "onConnectionFailed(connectionResult=%s)", connectionResult);
+            castTeardown();
+        }
+    };
+
+    final Cast.Listener mCastClientListener = new Cast.Listener() {
+        @Override
+        public void onApplicationStatusChanged() {
+            super.onApplicationStatusChanged();
+            Log.d(TAG, "onApplicationStatusChanged()");
+        }
+
+        @Override
+        public void onApplicationDisconnected(final int statusCode) {
+            super.onApplicationDisconnected(statusCode);
+            Log.d(TAG, "onApplicationDisconnected(statusCode=%s)", statusCode);
+            mCasting = false;
+        }
+
+        @Override
+        public void onVolumeChanged() {
+            super.onVolumeChanged();
+            Log.d(TAG, "onVolumeChanged()");
+        }
+    };
+
+    final MediaRouter.Callback mMediaRouterCallback = new MediaRouter.Callback() {
+
+        @Override
+        public void onRouteSelected(final MediaRouter router, final MediaRouter.RouteInfo info) {
+            Log.d(TAG, "onRouteSelected(router=%s, info=%s)", router, info);
+
+            mSelectedDevice = CastDevice.getFromBundle(info.getExtras());
+            castInit();
+        }
+
+        @Override
+        public void onRouteUnselected(final MediaRouter router, final MediaRouter.RouteInfo info) {
+            Log.d(TAG, "onRouteUnselected(router=%s, info=%s)", router, info);
+            castTeardown();
+        }
+    };
 
 }

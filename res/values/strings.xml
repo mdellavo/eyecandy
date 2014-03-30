@@ -48,4 +48,5 @@
     <string name="setup_description">Select from the default subreddits or add your favorites...</string>
     <string name="done">Done!</string>
     <string name="add_subreddit_hint">earthporn</string>
+    <string name="media_route_menu_title">Cast!</string>
 </resources>

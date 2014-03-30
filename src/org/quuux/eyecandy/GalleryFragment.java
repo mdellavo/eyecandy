@@ -53,11 +53,11 @@ public class GalleryFragment
 
 
     private static final String TAG = Log.buildTag(GalleryFragment.class);
-    private boolean mScraping;
 
     public static interface Listener {
         void showImage(Query query, int position);
         void openImage(Image image);
+        void castImage(Image image);
     }
 
     public static final int THUMB_SIZE = 100;
@@ -600,6 +600,7 @@ public class GalleryFragment
                 @Override
                 public void onClick(final View view) {
                     zoom(tag);
+                    mListener.castImage(tag.image);
                 }
             });
         }
