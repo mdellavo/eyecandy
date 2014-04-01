@@ -338,10 +338,13 @@ public class ViewerFragment
                     image != null ? image.getUrl() : "(null)");
 
             flipImage();
+            return;
         } else if (mFlipping && holder.imageLoaded) {
             Log.d(TAG, "image loaded and selected, scheduling flip");
             startFlipping();
         }
+
+        mListener.castImage(image);
     }
 
     @Override

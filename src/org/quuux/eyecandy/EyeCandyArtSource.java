@@ -5,9 +5,7 @@ import android.net.Uri;
 
 import com.google.android.apps.muzei.api.Artwork;
 import com.google.android.apps.muzei.api.MuzeiArtSource;
-import com.google.android.apps.muzei.api.RemoteMuzeiArtSource;
 
-import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Session;
 
@@ -35,7 +33,7 @@ public class EyeCandyArtSource extends MuzeiArtSource {
                         .build();
 
                 publishArtwork(artwork);
-                
+
                 scheduleUpdate(System.currentTimeMillis() + UPDATE_PERIOD);
             }
         });
