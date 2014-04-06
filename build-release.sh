@@ -8,7 +8,7 @@ then
     exit 1
 fi
 
-APK_PATH="builds/eyecandy-release-${VERSION}.apk"
+APK_PATH="builds/eyecandy-release-v${VERSION}.apk"
 
 git tag -a ${VERSION} -m "release - ${VERSION}"
 ./gradlew installRelease

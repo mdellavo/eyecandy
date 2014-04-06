@@ -13,12 +13,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
-import android.content.pm.ActivityInfo;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -42,7 +38,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdListener;
@@ -60,25 +55,16 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
-import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.*;
 import com.nineoldandroids.view.ViewPropertyAnimator;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.quuux.eyecandy.utils.ViewServer;
-import org.quuux.orm.Entity;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Query;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class MainActivity
@@ -142,6 +128,8 @@ public class MainActivity
             getWindow().requestFeature(Window.FEATURE_ACTION_BAR_OVERLAY);
 
         setContentView(R.layout.base);
+
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setBackgroundDrawable(getResources().getDrawable(R.drawable.actionbar));
@@ -250,6 +238,7 @@ public class MainActivity
         super.onPause();
         unregisterReceiver(mBroadcastReceiver);
         mAdView.pause();
+        castTeardown();
     }
 
     @Override
@@ -553,10 +542,10 @@ public class MainActivity
     }
 
 
-    public void showImage(final Query query, final int position, final boolean addToBackStack) {
+    public void showImage(final Query query, final int position, final Subreddit subreddit,  boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_VIEWER, query.toSql().hashCode());
         if (frag == null)
-            frag = ViewerFragment.newInstance(query, position);
+            frag = ViewerFragment.newInstance(query, position, subreddit);
         swapFrag(frag, FRAG_VIEWER, addToBackStack);
     }
 
@@ -567,22 +556,27 @@ public class MainActivity
         swapFrag(frag, FRAG_SETUP, false);
     }
 
-    public void showImage(final Query query, final int position) {
-        showImage(query, position, true);
+    public void showImage(final Query query, final int position, final Subreddit subreddit) {
+        showImage(query, position, subreddit, true);
     }
 
     public void showImage(final Query query) {
-        showImage(query, 0);
+        showImage(query, 0, null);
+    }
+
+    @Override
+    public void showImage(final Query query, final int position) {
+        showImage(query, position, null);
     }
 
     private void onShowImage() {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("timesShown, RANDOM()");
-        showImage(q, 0, false);
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("created");
+        showImage(q, 0, null, false);
     }
 
     public void showImage(final Subreddit subreddit) {
         final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"id\" ASC");
-        showImage(q, 0);
+        showImage(q, 0, subreddit);
     }
 
 
@@ -624,6 +618,7 @@ public class MainActivity
 
         ab.setSelectedNavigationItem(pos);
     }
+
 
     public void openImage(final Image image) {
         final OpenImageDialog dialog = OpenImageDialog.newInstance(image);

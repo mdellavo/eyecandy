@@ -58,6 +58,8 @@ public class ViewerFragment
                    ViewPager.OnPageChangeListener,
                    View.OnTouchListener, View.OnLongClickListener {
 
+    private static final int LOOKAHEAD = 10;
+
     public interface Listener {
         void startLeanback();
         void endLeanback();
@@ -70,7 +72,7 @@ public class ViewerFragment
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
-    private static final long FLIP_DELAY = 5 * 1000;
+    private static final long FLIP_DELAY = 15 * 1000;
     private Adapter mAdapter;
     private ViewPager mPager;
     private boolean mFlipping;
@@ -79,17 +81,18 @@ public class ViewerFragment
     private Handler mHandler = new Handler();
     private int mShortAnimationDuration;
 
-    public static ViewerFragment newInstance(final Query query, final int position) {
+    public static ViewerFragment newInstance(final Query query, final int position, final Subreddit subreddit) {
         final ViewerFragment rv = new ViewerFragment();
         final Bundle args = new Bundle();
         args.putSerializable("query", query);
         args.putInt("position", position);
+        args.putSerializable("subreddit", subreddit);
         rv.setArguments(args);
         return rv;
     }
 
     public static ViewerFragment newInstance(final Query query) {
-        return newInstance(query, 0);
+        return newInstance(query, 0, null);
     }
 
 
@@ -189,6 +192,13 @@ public class ViewerFragment
 
         mListener.setSelectedNavigationItemSilent(MainActivity.MODE_SLIDE_SHOW);
         mListener.startLeanback();
+
+        mPager.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mListener.castImage(getImage(0));
+            }
+        }, 100);
     }
 
     @Override
@@ -315,8 +325,20 @@ public class ViewerFragment
 
     @Override
     public void onPageScrolled(final int position, final float positionOffset, final int positionOffsetPixels) {
-        Log.d(TAG, "onPageScrolled(position = %s | positionOffset = %s | positionOffsetPixels = %s)",
-                position, positionOffset, positionOffsetPixels);
+    }
+
+    private Image getImage(final int i) {
+        final View v = mPager.findViewWithTag(i);
+
+        if (v == null)
+            return null;
+
+        final Holder holder = (Holder) v.getTag(R.id.holder);
+        if (holder == null)
+            return null;
+
+        return (Image) v.getTag(R.id.image);
+
     }
 
     @Override
@@ -331,7 +353,10 @@ public class ViewerFragment
         if (holder == null)
             return;
 
-        final Image image = (Image) v.getTag(R.id.image);
+        if (holder == null)
+            return;
+
+        final Image image =  (Image) v.getTag(R.id.image);
 
         if (holder.imageFailed) {
             Log.d(TAG, "selected a failed image %s, skipping...",
@@ -344,7 +369,26 @@ public class ViewerFragment
             startFlipping();
         }
 
-        mListener.castImage(image);
+        mAdapter.getQuery().count(new ScalarListener<Long>() {
+            @Override
+            public void onResult(final Long count) {
+
+                Log.d(TAG, "viewing position %s of %s (remaining=%s / lookahead=%s)", i, count, count-i, LOOKAHEAD);
+
+                if (count - i < LOOKAHEAD) {
+                    final Subreddit subreddit = getSubreddit();
+                    if (subreddit != null) {
+                        Log.d(TAG, "scraping more from %s", subreddit.getSubreddit());
+                        ScrapeService.scrapeSubreddit(getActivity(), subreddit);
+                    }
+                }
+            }
+        });
+    }
+
+    private Subreddit getSubreddit() {
+        final Bundle args = getArguments();
+        return (Subreddit) args.getSerializable("subreddit");
     }
 
     @Override
@@ -395,7 +439,11 @@ public class ViewerFragment
 
     private void flipImage() {
         Log.d(TAG, "flip image");
-        mPager.setCurrentItem(mPager.getCurrentItem() + 1, true);
+
+        final int pos = mPager.getCurrentItem() + 1;
+        final Image image = getImage(pos);
+        mListener.castImage(image);
+        mPager.setCurrentItem(pos, true);
     }
 
     private Runnable mFlipCallback = new Runnable() {
