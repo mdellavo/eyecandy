@@ -61,6 +61,8 @@ import com.nineoldandroids.view.ViewPropertyAnimator;
 import org.quuux.eyecandy.utils.ViewServer;
 import org.quuux.orm.FetchListener;
 import org.quuux.orm.Query;
+import org.quuux.orm.ScalarListener;
+import org.quuux.orm.Session;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -93,6 +95,7 @@ public class MainActivity
 
     public static final int MODE_BURNS = -1;
     private static final String SKU_UNLOCK = "unlock";
+    private static final int FLIP_DELAY = 15 * 1000;
 
     final private Handler mHandler = new Handler();
 
@@ -586,9 +589,6 @@ public class MainActivity
             frag = GalleryFragment.newInstance(query, subreddit);
         }
         swapFrag(frag, FRAG_GALLERY, addToBackStack);
-
-        if (subreddit != null)
-            castImage(subreddit);
     }
 
     public void showGallery( final Query query, final Subreddit subreddit) {
@@ -1030,6 +1030,95 @@ public class MainActivity
         }
     }
 
+    class CastFlipper {
+
+        final Query mQuery;
+        final Session mSession;
+        int mDelay;
+        boolean mFlipping;
+        int mConsumed;
+        private long mCount;
+
+        CastFlipper(final Context context, final Query query) {
+            mQuery = query;
+            mSession = EyeCandyDatabase.getSession(context.getApplicationContext());
+        }
+
+        void setDelay(int delay) {
+            mDelay = delay;
+        }
+
+        void startFlipping() {
+            mFlipping = true;
+
+            mQuery.count(new ScalarListener<Long>() {
+                @Override
+                public void onResult(final Long count) {
+                    if (count == 0)
+                        return;
+
+                    mCount = count;
+
+                    flipImage();
+                }
+            });
+        }
+
+        void stopFlipping() {
+            mFlipping = false;
+            mHandler.removeCallbacks(mCallback);
+        }
+
+        void flipImage() {
+            mQuery.offset((int) (mConsumed % mCount)).limit(1).first(new FetchListener<Image>() {
+                @Override
+                public void onResult(final Image image) {
+                    castImage(image);
+                    mConsumed++;
+
+                    if (mFlipping) {
+                        mHandler.removeCallbacks(mCallback);
+                        mHandler.postDelayed(mCallback, mDelay);
+                    }
+
+                }
+            });
+        }
+
+        final Runnable mCallback = new Runnable() {
+            @Override
+            public void run() {
+                flipImage();
+            }
+        };
+    }
+
+    CastFlipper mCastFlipper;
+
+    public void castStartFlipping(final Query query, final int delay) {
+
+        if (mCastFlipper != null)
+            castStopFlipping(false);
+
+        mCastFlipper = new CastFlipper(this, query);
+        mCastFlipper.setDelay(delay);
+        mCastFlipper.startFlipping();
+    }
+
+    public void castStopFlipping(final boolean goIdle) {
+        if (mCastFlipper != null) {
+            mCastFlipper.stopFlipping();
+            mCastFlipper = null;
+
+            if (goIdle)
+                castIdle();
+        }
+    }
+
+    public void castStopFlipping() {
+        castStopFlipping(true);
+    }
+
     void castInit() {
         Log.d(TAG, "Cast Init!!!");
 
@@ -1062,6 +1151,10 @@ public class MainActivity
     }
 
     public void castImage(final Image image) {
+
+        if (image == null)
+            return;
+
         if (!mCasting) {
             Log.d(TAG, "Not casting image %s", image);
             return;
@@ -1088,24 +1181,9 @@ public class MainActivity
                 });
     }
 
-    void castImage() {
+    void castIdle() {
         final Query q = EyeCandyDatabase.getSession(this).query(Image.class).orderBy("RANDOM()");
-        q.first(new FetchListener<Image>() {
-            @Override
-            public void onResult(final Image image) {
-                castImage(image);
-            }
-        });
-    }
-
-    void castImage(final Subreddit subreddit) {
-        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", new String[] {subreddit.getSubreddit()}).orderBy("RANDOM()");
-        q.first(new FetchListener<Image>() {
-            @Override
-            public void onResult(final Image image) {
-                castImage(image);
-            }
-        });
+        castStartFlipping(q, FLIP_DELAY);
     }
 
     final GoogleApiClient.ConnectionCallbacks mConnectionCallbacks = new GoogleApiClient.ConnectionCallbacks() {
@@ -1116,7 +1194,7 @@ public class MainActivity
 
             if (mWaitingForReconnect) {
                 mWaitingForReconnect = false;
-                castImage();
+                castIdle();
             } else {
 
 
@@ -1140,7 +1218,7 @@ public class MainActivity
 
                                                 mCasting = true;
 
-                                                castImage();
+                                                castIdle();
 
                                             } else {
                                                 castTeardown();

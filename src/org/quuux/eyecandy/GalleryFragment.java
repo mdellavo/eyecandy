@@ -53,11 +53,14 @@ public class GalleryFragment
 
 
     private static final String TAG = Log.buildTag(GalleryFragment.class);
+    private static final int FLIP_DELAY = 15 * 1000;
 
     public static interface Listener {
         void showImage(Query query, int position);
         void openImage(Image image);
         void castImage(Image image);
+        void castStartFlipping(Query query, int delay);
+        void castStopFlipping();
     }
 
     public static final int THUMB_SIZE = 100;
@@ -150,6 +153,15 @@ public class GalleryFragment
             public void onResult(final Image image) {
                 if (image != null)
                     setBackground((ImageView) rv.findViewById(R.id.backing), image);
+
+                mListener.castImage(image);
+                
+                rv.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        mListener.castStartFlipping(mQuery, FLIP_DELAY);
+                    }
+                }, FLIP_DELAY);
             }
         });
 
@@ -495,6 +507,7 @@ public class GalleryFragment
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         endZoom(tag.thumbnail);
+                        mListener.castStartFlipping(mQuery, FLIP_DELAY);
                     }
 
                     @Override

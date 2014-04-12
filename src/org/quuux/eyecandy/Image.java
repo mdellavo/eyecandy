@@ -69,10 +69,6 @@ public class Image implements Entity, Serializable {
     @Column()
     private String subreddit;
 
-    private long getCreated() {
-        return created;
-    }
-
     protected Image(final Subreddit subreddit, final String url, final String thumbnaillUrl, final String title, final long created, final boolean animated, final Status status, final int timesShown) {
         this.subreddit = subreddit.getSubreddit();
         this.url = url;
@@ -138,6 +134,10 @@ public class Image implements Entity, Serializable {
     public void stamp() {
         lastShown = System.currentTimeMillis();
         timesShown++;
+    }
+
+    private long getCreated() {
+        return created;
     }
 
 }

@@ -38,58 +38,10 @@ public class EyeCandyDatabase extends Database {
             "oldschoolcool",
             "aww",
             "perfectloops",
-            "earthporn",
-            "villageporn",
-            "cityporn",
-            "spaceporn",
-            "waterporn",
-            "abandonedporn",
-            "animalporn",
-            "humanporn",
-            "botanicalporn",
-            "adrenalineporn",
-            "destructionporn",
-            "movieposterporn",
-            "albumartporn",
-            "machineporn",
-            "newsporn",
-            "geekporn",
-            "bookporn",
-            "mapporn",
-            "adporn",
-            "designporn",
-            "roomporn",
-            "militaryporn",
-            "historyporn",
-            "quotesporn",
-            "skyporn",
-            "fireporn",
-            "infrastructureporn",
-            "macroporn",
-            "instrumentporn",
-            "climbingporn",
-            "architectureporn",
-            "artporn",
-            "cemeteryporn",
-            "carporn",
-            "fractalporn",
-            "exposureporn",
-            "gunporn",
-            "culinaryporn",
-            "dessertporn",
-            "agricultureporn",
-            "boatporn",
-            "geologyporn",
-            "futureporn",
-            "winterporn",
-            "ruralporn",
-            "spaceart",
-            "foodporn"
-    };
 
-    static {
-        Arrays.sort(SUBREDDITS);
-    }
+            // $('blockquote a').map(function() {return this.text.replace('/r/', '')});
+            "ShittyEarthPorn", "VideoPorn", "Scholastic", "HistoryPorn", "MapPorn", "BookPorn", "NewsPorn", "QuotesPorn", "FuturePorn", "FossilPorn", "Aesthetic", "DesignPorn", "AlbumArtPorn", "MetalPorn", "MoviePosterPorn", "AdPorn", "GeekPorn", "RoomPorn", "InstrumentPorn", "MacroPorn", "MicroPorn", "ArtPorn", "FractalPorn", "ExposurePorn", "StreetArtPorn", "AVPorn", "powerwashingporn", "uniformporn", "mtgporn", "GamerPorn", "Organic", "AnimalPorn", "BotanicalPorn", "HumanPorn", "AdrenalinePorn", "ClimbingPorn", "CulinaryPorn", "FoodPorn", "DessertPorn", "AgriculturePorn", "TeaPorn", "MegalithPorn", "SportsPorn", "mushroomporn", "Synthetic", "CityPorn", "VillagePorn", "AbandonedPorn", "InfrastructurePorn", "MachinePorn", "MilitaryPorn", "CemeteryPorn", "ArchitecturePorn", "CarPorn", "F1Porn", "GunPorn", "KnifePorn", "BoatPorn", "AerialPorn", "RuralPorn", "RidesPorn", "HousePorn", "thingscutinhalfporn", "cabinporn", "Elemental", "EarthPorn", "WaterPorn", "SkyPorn", "SpacePorn", "FirePorn", "DestructionPorn", "GeologyPorn", "WinterPorn", "AutumnPorn", "weatherporn"
+    };
 
     protected EyeCandyDatabase(final Context context, final String name, final int version) {
         super(context, name, version);

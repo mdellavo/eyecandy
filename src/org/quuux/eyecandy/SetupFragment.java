@@ -27,6 +27,7 @@ import org.quuux.orm.ScalarListener;
 import org.quuux.orm.Session;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 public class SetupFragment extends ListFragment implements View.OnClickListener {
@@ -62,17 +63,6 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
         final View v = inflater.inflate(R.layout.setup_fragment, container, false);
         mButton = (Button)v.findViewById(R.id.done);
         mButton.setOnClickListener(this);
-        return v;
-    }
-
-    @Override
-    public void onActivityCreated(final Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        mAdapter = new Adapter(getActivity());
-        for (final String s : EyeCandyDatabase.SUBREDDITS)
-            mAdapter.add(s);
-
-        setListAdapter(mAdapter);
 
         final Session session = EyeCandyDatabase.getSession(getActivity());
 
@@ -96,6 +86,23 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
                 }
             }
         });
+
+        return v;
+    }
+
+    @Override
+    public void onActivityCreated(final Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        mAdapter = new Adapter(getActivity());
+
+
+
+        Arrays.sort(EyeCandyDatabase.SUBREDDITS, new SortIgnoreCase());
+        for (final String s : EyeCandyDatabase.SUBREDDITS)
+            mAdapter.add(s);
+
+        setListAdapter(mAdapter);
+
     }
 
     @Override
@@ -200,6 +207,14 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
 
         private View newView(final int position, final ViewGroup parent) {
             return mInflater.inflate(R.layout.subreddit_item, parent, false);
+        }
+    }
+
+    public class SortIgnoreCase implements Comparator<Object> {
+        public int compare(Object o1, Object o2) {
+            String s1 = (String) o1;
+            String s2 = (String) o2;
+            return s1.toLowerCase().compareToIgnoreCase(s2.toLowerCase());
         }
     }
 }
