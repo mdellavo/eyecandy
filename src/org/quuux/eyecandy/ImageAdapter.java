@@ -16,6 +16,8 @@ import org.quuux.orm.Session;
 
 import java.util.*;
 
+import pl.droidsonroids.gif.GifDrawable;
+
 
 public class ImageAdapter {
 
@@ -169,11 +171,11 @@ public class ImageAdapter {
             Log.d(TAG, "image %s is animated %s", image, image.isAnimated());
 
             if (image.isAnimated()) {
-                request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDecoder>() {
+                request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDrawable>() {
                     @Override
-                    public void onResponse(final GifDecoder decoder) {
+                    public void onResponse(final GifDrawable decoder) {
                         Log.d(TAG, "got movie reponse %s - %s", image, decoder);
-                        //ImageAdapter.this.onResponse(image, decoder);
+                        ImageAdapter.this.onResponse(image, decoder);
                     }
                 }, errorListener) {
                     @Override

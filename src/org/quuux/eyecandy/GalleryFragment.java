@@ -45,6 +45,8 @@ import org.quuux.orm.Query;
 import org.quuux.orm.Session;
 import org.quuux.orm.util.QueryAdapter;
 
+import pl.droidsonroids.gif.GifDrawable;
+
 public class GalleryFragment
         extends Fragment
         implements AbsListView.OnScrollListener,
@@ -356,14 +358,12 @@ public class GalleryFragment
 
             final GifDecoderRequest request = new GifDecoderRequest(
                     tag.image.getUrl(),
-                    new Response.Listener<GifDecoder>() {
+                    new Response.Listener<GifDrawable>() {
                         @Override
-                        public void onResponse(final GifDecoder response) {
+                        public void onResponse(final GifDrawable response) {
                             if (response != null) {
-                                final AnimatedImageDrawable drawable =
-                                        new AnimatedImageDrawable(context, response, bounds);
-                                mZoomedImage.setImageDrawable(drawable);
-                                drawable.setVisible(true, true);
+                                mZoomedImage.setImageDrawable(response);
+                                response.setVisible(true, true);
                             }
 
                             onZoomedImageLoadComplete();

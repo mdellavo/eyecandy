@@ -28,10 +28,11 @@ dependencies {
     compile 'com.android.support:mediarouter-v7:19.+'
     compile 'com.google.android.gms:play-services:4.+'
     compile 'com.mcxiaoke.volley:library-aar:1.+'
-    compile 'com.squareup.okhttp:okhttp:+'
-    compile 'com.squareup.picasso:picasso:+'
+    compile 'com.squareup.okhttp:okhttp:1.5.+'
+    compile 'com.squareup.picasso:picasso:2.2.+'
     compile 'com.google.code.gson:gson:+'
     compile 'com.google.android.apps.muzei:muzei-api:+'
+    compile 'pl.droidsonroids.gif:android-gif-drawable:1.0.+'
 
     compile project(':orm-android')
 

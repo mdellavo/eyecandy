@@ -52,6 +52,8 @@ import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 
+import pl.droidsonroids.gif.GifDrawable;
+
 public class ViewerFragment
         extends Fragment
         implements ViewPager.PageTransformer,
@@ -482,7 +484,8 @@ public class ViewerFragment
         int position;
         Bitmap backingBitmap;
         Bitmap bitmap;
-        AnimatedImageDrawable movie;
+
+        GifDrawable movie;
         ImageView image;
         ImageView backing;
         ProgressBar spinner;
@@ -723,30 +726,29 @@ public class ViewerFragment
             if (context == null)
                 return;
 
-            final GifDecoderRequest request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDecoder>() {
+            final GifDecoderRequest request = new GifDecoderRequest(image.getUrl(), new Response.Listener<GifDrawable>() {
                 @Override
-                public void onResponse(final GifDecoder decoder) {
+                public void onResponse(final GifDrawable drawable) {
 
                     final Context context = getContext();
                     if (context == null)
                         return;
 
-                    if (decoder == null || decoder.getWidth() == 0 || decoder.getHeight() == 0 || decoder.getFrameCount() == 0) {
+                    if (drawable == null || drawable.getNumberOfFrames() == 0) {
                         Log.d(TAG, "error loading gif %s", image);
                         return;
                     }
 
-                    final AnimatedImageDrawable drawable = new AnimatedImageDrawable(context, decoder, null);
                     holder.image.setImageDrawable(drawable);
                     drawable.setVisible(true, true);
 
                     holder.movie = drawable;
 
                     // FIXME async task this, factor this out
-                    setBacking(holder, drawable.getFrame(decoder.getFrameCount()/2));
+                    //setBacking(holder,drawable.getCurrent());
 
                     final long t2 = SystemClock.uptimeMillis();
-                    Log.d(TAG, "loaded gif - %s (%s x %s @ %s frames) in %d ms", image, decoder.getWidth(), decoder.getHeight(), decoder.getFrameCount(), t2-t1);
+                    Log.d(TAG, "loaded gif - %s (%s @ %s frames) in %d ms", image, drawable.getBounds(), drawable.getNumberOfFrames(), t2-t1);
 
                     onImageLoaded(holder);
 
