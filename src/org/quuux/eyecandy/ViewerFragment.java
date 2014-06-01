@@ -6,8 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Movie;
 import android.graphics.Point;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -370,6 +372,12 @@ public class ViewerFragment
             Log.d(TAG, "image loaded and selected, scheduling flip");
             startFlipping();
         }
+
+        if (holder.movie != null) {
+            holder.movie.reset();
+            holder.movie.start();
+        }
+
 
         mAdapter.getQuery().count(new ScalarListener<Long>() {
             @Override
@@ -744,8 +752,13 @@ public class ViewerFragment
 
                     holder.movie = drawable;
 
-                    // FIXME async task this, factor this out
-                    //setBacking(holder,drawable.getCurrent());
+                    if (drawable.canSeekForward())
+                        drawable.seekTo(drawable.getDuration() / 2);
+
+                    setBacking(holder, drawable);
+
+                    if (drawable.canSeekBackward())
+                        drawable.reset();
 
                     final long t2 = SystemClock.uptimeMillis();
                     Log.d(TAG, "loaded gif - %s (%s @ %s frames) in %d ms", image, drawable.getBounds(), drawable.getNumberOfFrames(), t2-t1);
@@ -822,6 +835,14 @@ public class ViewerFragment
                     ViewPropertyAnimator.animate(holder.backing).alpha(.4f).setDuration(holder.duration).start();
                 }
             });
+        }
+
+        private void setBacking(final Holder holder, final Drawable drawable) {
+            Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            drawable.draw(canvas);
+            setBacking(holder, bitmap);
         }
 
         private void onImageLoaded(final Holder holder) {
