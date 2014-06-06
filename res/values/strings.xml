@@ -36,7 +36,8 @@
 
         <p>
             &#8226; <em>All advertising will be removed!</em><br/>
-            &#8226; <em>All nagging will be removed!</em>
+            &#8226; <em>All nagging will be removed!</em><br/>
+            &#8226; <em>Access to premium and beta features!</em>
         </p>
         ]]>
     </string>
@@ -50,4 +51,5 @@
     <string name="add_subreddit_hint">earthporn</string>
     <string name="media_route_menu_title">Cast!</string>
     <string name="app_description">Images from Reddit and Imgur</string>
+    <string name="about">About EyeCandy</string>
 </resources>

@@ -34,6 +34,7 @@ import android.support.v7.media.MediaRouteSelector;
 import android.support.v7.media.MediaRouter;
 import android.text.Html;
 import android.view.*;
+import android.webkit.WebView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -43,6 +44,9 @@ import com.android.vending.billing.IInAppBillingService;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.analytics.GoogleAnalytics;
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.google.android.gms.cast.ApplicationMetadata;
 import com.google.android.gms.cast.Cast;
 import com.google.android.gms.cast.CastDevice;
@@ -117,7 +121,7 @@ public class MainActivity
     private RemoteMediaPlayer mRemoteMediaPlayer;
     private boolean mWaitingForReconnect;
     private boolean mCasting;
-
+    private Tracker mTracker;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -304,9 +308,13 @@ public class MainActivity
         final MenuItem mediaRouteMenuItem = menu.findItem(R.id.media_route_menu_item);
         final MediaRouteActionProvider mediaRouteActionProvider =
                 (MediaRouteActionProvider) MenuItemCompat.getActionProvider(mediaRouteMenuItem);
-        mediaRouteActionProvider.setRouteSelector(mMediaRouteSelector);
+        if (mMediaRouteSelector != null)
+            mediaRouteActionProvider.setRouteSelector(mMediaRouteSelector);
 
         getMenuInflater().inflate(R.menu.nag, menu);
+
+        getMenuInflater().inflate(R.menu.main, menu);
+
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -317,6 +325,11 @@ public class MainActivity
         switch (item.getItemId()) {
             case R.id.unlock:
                 showNag(true);
+                rv = true;
+                break;
+
+            case R.id.about:
+                showAbout();
                 rv = true;
                 break;
 
@@ -514,8 +527,6 @@ public class MainActivity
         if (mLeanback)
             exitLeanback();
 
-
-
         final FragmentManager frags = getSupportFragmentManager();
         if (!addToBackStack)
             frags.popBackStack();
@@ -526,6 +537,11 @@ public class MainActivity
         if (addToBackStack)
             ft.addToBackStack(null);
         ft.commit();
+
+
+        Tracker t = getTracker();
+        t.setScreenName(fragment.getClass().getName());
+        t.send(new HitBuilders.AppViewBuilder().build());
     }
 
     private void swapFrag(final Fragment fragment, final String tag) {
@@ -689,6 +705,14 @@ public class MainActivity
         showNag(false);
     }
 
+    private void showAbout() {
+        final FragmentManager fm = getSupportFragmentManager();
+        if (fm.findFragmentByTag("about") == null) {
+            final WebViewDialog dialog = WebViewDialog.newInstance(R.string.about, "file:///android_asset/about.html");
+            dialog.show(getSupportFragmentManager(), "about");
+        }
+    }
+
     @Override
     public void onSetupComplete() {
         EyeCandyPreferences.markFirstRun(this);
@@ -779,6 +803,16 @@ public class MainActivity
 
             return v;
         }
+    }
+
+    public synchronized Tracker getTracker() {
+
+        if (mTracker == null) {
+            GoogleAnalytics analytics = GoogleAnalytics.getInstance(this);
+            mTracker = analytics.newTracker(R.xml.ga);
+        }
+
+        return mTracker;
     }
 
     public static class OpenImageDialog extends DialogFragment {
@@ -934,6 +968,45 @@ public class MainActivity
             Log.d(TAG, "ad loaded");
         }
     };
+
+    public static class WebViewDialog extends DialogFragment {
+        public WebViewDialog() {
+            super();
+        }
+
+        public static WebViewDialog newInstance(final int titleResId, final String url) {
+            final WebViewDialog rv = new WebViewDialog();
+            final Bundle args = new Bundle();
+            args.putInt("title", titleResId);
+            args.putString("url", url);
+            rv.setArguments(args);
+            return rv;
+        }
+
+        @Override
+        public Dialog onCreateDialog(final Bundle savedInstanceState) {
+            final Bundle args = getArguments();
+            final int title = args.getInt("title");
+            final String url = args.getString("url");
+
+            final WebView view = new WebView(getActivity());
+            view.setBackgroundColor(0x00000000);
+            view.loadUrl(url);
+
+            final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+            final Dialog dialog = builder.setTitle(title)
+                    .setCancelable(false)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .setView(view)
+                    .create();
+
+            dialog.setCancelable(false);
+            dialog.setCanceledOnTouchOutside(false);
+
+            return dialog;
+        }
+    }
 
     public static class NagDialog extends DialogFragment {
 

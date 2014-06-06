@@ -22,9 +22,12 @@
         android:layout_height="wrap_content"
         android:text="@string/nag_thank_you"
         android:textSize="18sp"
-        android:paddingTop="10dp"
-        android:paddingRight="10dp"
-        android:gravity="center_vertical"
+        android:paddingTop="30dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="10dp"
+        android:gravity="center_vertical|center_horizontal"
+        android:layout_above="@+id/nag_text"
+
         />
 
 

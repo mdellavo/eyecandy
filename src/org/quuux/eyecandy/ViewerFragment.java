@@ -374,10 +374,12 @@ public class ViewerFragment
         }
 
         if (holder.movie != null) {
+            Log.d(TAG, "starting movie");
             holder.movie.reset();
             holder.movie.start();
         }
 
+        holder.summon(true);
 
         mAdapter.getQuery().count(new ScalarListener<Long>() {
             @Override
@@ -470,6 +472,12 @@ public class ViewerFragment
             Log.d(TAG, "currently selected view loaded, scheduling flip");
             startFlipping();
         }
+
+        if (holder.movie != null && mPager.getCurrentItem() == holder.position) {
+            holder.movie.reset();
+            holder.movie.start();
+
+        }
     }
 
     private void onImageError(final Holder holder, final VolleyError error) {
@@ -506,7 +514,7 @@ public class ViewerFragment
             }
         };
 
-        void summon() {
+        void summon(final boolean autoDismiss) {
             ViewPropertyAnimator
                     .animate(title)
                     .setDuration(Math.round(duration))
@@ -517,6 +525,8 @@ public class ViewerFragment
                         }
                         @Override
                         public void onAnimationEnd(final Animator animation) {
+                            if (autoDismiss)
+                                dismiss();
                         }
 
                         @Override
@@ -529,6 +539,10 @@ public class ViewerFragment
 
                         }
                     });
+        }
+
+        void summon() {
+            summon(false);
         }
 
         void dismiss() {

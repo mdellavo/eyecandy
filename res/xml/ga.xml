@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="ga_sessionTimeout">300</integer>
+
+    <bool name="ga_autoActivityTracking">true</bool>
+
+    <screenName name="org.quuux.eyecandy.ViewerFragment">
+        Viewer
+    </screenName>
+
+    <screenName name="org.quuux.eyecandy.GalleryFragment">
+        Gallery
+    </screenName>
+
+    <screenName name="org.quuux.eyecandy.SetupFragment">
+        Setup
+    </screenName>
+
+    <screenName name="org.quuux.eyecandy.SourcesFragment">
+        Sources
+    </screenName>
+
+    <screenName name="org.quuux.eyecandy.RandomFragment">
+        Random
+    </screenName>
+
+    <string name="ga_trackingId">UA-51555701-1</string>
+</resources>
