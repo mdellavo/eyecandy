@@ -49,5 +49,58 @@ import org.quuux.orm.util.QueryAdapter;
 import pl.droidsonroids.gif.GifDrawable;
 
 public class FeedFragment extends GalleryFragment {
+    @Override
+    public int getLayout() {
+        return R.layout.feed;
+    }
+
+    @Override
+    public int getItemLayout() {
+        return R.layout.feed_item;
+    }
+
+    @Override
+    public void bindItem(final Holder tag) {
+        final Transformation transformation = new Transformation() {
+
+            @Override public Bitmap transform(Bitmap source) {
+                int targetWidth = tag.thumbnail.getWidth();
+
+                double aspectRatio = (double) source.getHeight() / (double) source.getWidth();
+                int targetHeight = (int) (targetWidth * aspectRatio);
+                Bitmap result = Bitmap.createScaledBitmap(source, targetWidth, targetHeight, false);
+                if (result != source) {
+                    // Same bitmap is returned if sizes are the same
+                    source.recycle();
+                }
+                return result;
+            }
+
+            @Override public String key() {
+                return "transformation" + " desiredWidth";
+            }
+        };
+
+        final String url = tag.image.isImgur() ? tag.image.getImgurThumbnailUrl(Image.Thumbnail.HUGE) : tag.image.getUrl();
+
+        mPicasso.load(url)
+                .placeholder(R.drawable.ic_loading)
+                .transform(transformation)
+                .into(tag.thumbnail, tag.callback);
+    }
+
+    public static FeedFragment newInstance(final Query query, final Subreddit subreddit) {
+        final FeedFragment rv = new FeedFragment();
+        final Bundle args = new Bundle();
+        if (query != null)
+            args.putSerializable("query", query);
+
+        if (subreddit != null)
+            args.putSerializable("subreddit", subreddit);
+
+        rv.setArguments(args);
+        return rv;
+    }
+
 
 }

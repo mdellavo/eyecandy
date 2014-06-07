@@ -90,12 +90,14 @@ public class MainActivity
     private static final String FRAG_GALLERY = "gallery-%s";
     private static final String FRAG_VIEWER = "viewer-%s";
     private static final String FRAG_SOURCES = "subreddits";
+    private static final String FRAG_FEED = "feed";
     private static final String FRAG_SETUP = "setup";
 
     public static final int MODE_SLIDE_SHOW = 0;
     public static final int MODE_SOURCES = 1;
     public static final int MODE_GALLERY = 2;
-    private static final int MODE_SETUP = 3;
+    private static final int MODE_FEED = 3;
+    private static final int MODE_SETUP = 4;
 
     public static final int MODE_BURNS = -1;
     private static final String SKU_UNLOCK = "unlock";
@@ -383,6 +385,11 @@ public class MainActivity
                     onShowGallery();
                 break;
 
+            case MODE_FEED:
+                if (!isFragCurrently(FRAG_FEED))
+                    onShowFeed();
+                break;
+
             case MODE_SETUP:
                 onShowSetup();
                 break;
@@ -538,7 +545,6 @@ public class MainActivity
             ft.addToBackStack(null);
         ft.commit();
 
-
         Tracker t = getTracker();
         t.setScreenName(fragment.getClass().getName());
         t.send(new HitBuilders.AppViewBuilder().build());
@@ -598,7 +604,6 @@ public class MainActivity
         showImage(q, 0, subreddit);
     }
 
-
     public void showGallery(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
         Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
         if (frag == null) {
@@ -620,6 +625,23 @@ public class MainActivity
         showGallery(null, null, false);
     }
 
+    public void showFeed(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
+        Fragment frag = getFrag(FRAG_FEED, query != null ? query.toSql().hashCode() : 0);
+        if (frag == null) {
+            frag = FeedFragment.newInstance(query, subreddit);
+        }
+        swapFrag(frag, FRAG_GALLERY, addToBackStack);
+    }
+
+    public void showFeed(final Subreddit subreddit) {
+        final Query q = EyeCandyDatabase.getSession(this).query(Image.class).filter("subreddit=?", subreddit.getSubreddit()).orderBy("\"id\" ASC");
+        showFeed(q, subreddit, true);
+    }
+
+    private void onShowFeed() {
+        showFeed(null, null, false);
+    }
+
     private void onShowSources() {
         Fragment frag = getFrag(FRAG_SOURCES);
         if (frag == null)
@@ -634,7 +656,6 @@ public class MainActivity
 
         ab.setSelectedNavigationItem(pos);
     }
-
 
     public void openImage(final Image image) {
         final OpenImageDialog dialog = OpenImageDialog.newInstance(image);

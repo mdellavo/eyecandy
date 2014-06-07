@@ -50,6 +50,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
     public interface Listener {
         void showImage(Subreddit subreddit);
         void showGallery(Subreddit subreddit);
+        void showFeed(Subreddit subreddit);
     }
 
     private Listener mListener;
@@ -369,6 +370,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
         static final int MODE_SLIDESHOW = 0;
         static final int MODE_GALLERY = 1;
+        static final int MODE_FEED = 2;
+
         private Listener mListener;
 
         @Override
@@ -406,6 +409,9 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
                         case MODE_GALLERY:
                             mListener.showGallery(subreddit);
+                            break;
+                        case MODE_FEED:
+                            mListener.showFeed(subreddit);
                             break;
                     }
                 }

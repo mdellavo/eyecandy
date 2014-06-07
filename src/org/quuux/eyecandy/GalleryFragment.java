@@ -35,8 +35,8 @@ import com.nineoldandroids.animation.ObjectAnimator;
 import com.nineoldandroids.view.ViewHelper;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Transformation;
 
-import org.quuux.eyecandy.utils.GifDecoder;
 import org.quuux.eyecandy.utils.GifDecoderRequest;
 import org.quuux.eyecandy.utils.ImageUtils;
 import org.quuux.orm.FetchListener;
@@ -67,15 +67,15 @@ public class GalleryFragment
 
     public static final int THUMB_SIZE = 100;
 
-    private Listener mListener;
+    Listener mListener;
 
     private Query mQuery;
 
     private ViewGroup mContainer;
     private GridView mGridView;
-    private ThumbnailAdapter mThumbnailsAdapter;
+    private Adapter mThumbnailsAdapter;
 
-    private Picasso mPicasso;
+    Picasso mPicasso;
 
     private Animator mCurrentAnimator;
     private int mShortAnimationDuration;
@@ -120,7 +120,7 @@ public class GalleryFragment
         else
             mQuery = session.query(Image.class).orderBy("id DESC");
 
-        mThumbnailsAdapter = new ThumbnailAdapter(context, mQuery);
+        mThumbnailsAdapter = new Adapter(context, mQuery);
     }
 
     @Override
@@ -132,7 +132,7 @@ public class GalleryFragment
     @Override
     public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
 
-        final View rv = inflater.inflate(R.layout.gallery, container, false);
+        final View rv = inflater.inflate(getLayout(), container, false);
 
         mContainer = container;
 
@@ -212,7 +212,7 @@ public class GalleryFragment
     public boolean onOptionsItemSelected(final MenuItem item) {
 
         if (item.getItemId() == R.id.select) {
-            final Thumbnailholder tag = (Thumbnailholder) mZoomedImage.getTag();
+            final Holder tag = (Holder) mZoomedImage.getTag();
             if (tag != null) {
                 endZoom(mZoomedImage);
                 mListener.showImage(mQuery, mThumbnailsAdapter.getPositionForItem(tag.image));
@@ -225,12 +225,27 @@ public class GalleryFragment
     }
     @Override
     public boolean onLongClick(final View v) {
-        final Thumbnailholder tag = (Thumbnailholder) mZoomedImage.getTag();
+        final Holder tag = (Holder) mZoomedImage.getTag();
         if (tag == null)
             return false;
 
         mListener.openImage(tag.image);
         return true;
+    }
+
+    public int getLayout() {
+        return R.layout.gallery;
+    }
+
+    public int getItemLayout() {
+        return R.layout.thumbnail;
+    }
+
+    public void bindItem(Holder tag) {
+        mPicasso.load(tag.image.getThumbnailUrl())
+                .fit()
+                .placeholder(R.drawable.ic_loading)
+                .into(tag.thumbnail, tag.callback);
     }
 
     // FIXME factor this out nicely and reuse , maybe base fragment
@@ -345,7 +360,7 @@ public class GalleryFragment
 
     }
 
-    private void loadZoomedImage(final Thumbnailholder tag, final Rect bounds) {
+    private void loadZoomedImage(final Holder tag, final Rect bounds) {
         if (tag.image.isAnimated()) {
 
             final Context context = getActivity();
@@ -384,7 +399,7 @@ public class GalleryFragment
 
             mPicasso.load(tag.image.getUrl())
                     .resize(bounds.width(), bounds.height())
-                    .centerCrop()
+                    .centerInside()
                     .into(mZoomedImage, new Callback() {
                         @Override
                         public void onSuccess() {
@@ -393,14 +408,14 @@ public class GalleryFragment
 
                         @Override
                         public void onError() {
-                           onZoomedImageLoadComplete();
+                            onZoomedImageLoadComplete();
                         }
                     });
         }
 
     }
 
-    private void zoom(final Thumbnailholder tag) {
+    void zoom(final Holder tag) {
         if (mCurrentAnimator != null) {
             mCurrentAnimator.cancel();
         }
@@ -550,20 +565,20 @@ public class GalleryFragment
         getActivity().supportInvalidateOptionsMenu();
     }
 
-    static class Thumbnailholder {
+    public static class Holder {
         ImageView thumbnail;
         View animated;
         Image image;
         Callback callback;
     }
 
-    class ThumbnailAdapter extends QueryAdapter<Image> {
+    class Adapter extends QueryAdapter<Image> {
 
         final int mPadding;
         final int mSize;
         private final LayoutInflater mInflater;
 
-        public ThumbnailAdapter(final Context context, final Query query) {
+        public Adapter(final Context context, final Query query) {
             super(context, query);
             mSize = context.getResources().getDimensionPixelSize(R.dimen.source_thumbnail);
             mPadding = context.getResources().getDimensionPixelSize(R.dimen.thumbnail_padding);
@@ -573,9 +588,9 @@ public class GalleryFragment
         @Override
         protected View newView(final Context context, final Image item, final ViewGroup parent) {
 
-            final View v = mInflater.inflate(R.layout.thumbnail, parent, false);
+            final View v = mInflater.inflate(getItemLayout(), parent, false);
 
-            final Thumbnailholder holder = new Thumbnailholder();
+            final Holder holder = new Holder();
             holder.thumbnail = (ImageView) v.findViewById(R.id.thumbnail);
             holder.animated = v.findViewById(R.id.animated);
             v.setTag(holder);
@@ -586,7 +601,7 @@ public class GalleryFragment
         @Override
         protected void bindView(final Context context, final Image item, final View view, final ViewGroup parent) {
 
-            final Thumbnailholder tag = (Thumbnailholder) view.getTag();
+            final Holder tag = (Holder) view.getTag();
             tag.image = item;
             tag.animated.setVisibility(View.GONE);
             tag.callback = new Callback() {
@@ -600,14 +615,7 @@ public class GalleryFragment
                 }
             };
 
-            final String thumbnailUrl = item.getThumbnailUrl();
-
-            if (thumbnailUrl != null)
-                mPicasso.load(thumbnailUrl)
-                        .centerCrop()
-                        .placeholder(R.drawable.ic_loading)
-                        .resize(mSize, mSize)
-                        .into(tag.thumbnail, tag.callback);
+            bindItem(tag);
 
             tag.thumbnail.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -616,6 +624,7 @@ public class GalleryFragment
                     mListener.castImage(tag.image);
                 }
             });
+
         }
 
         @Override

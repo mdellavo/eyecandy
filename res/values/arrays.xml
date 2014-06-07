@@ -3,5 +3,6 @@
     <string-array name="open_items">
         <item>Slide Show</item>
         <item>Gallery</item>
+        <item>Feed</item>
     </string-array>
 </resources>
