@@ -38,6 +38,6 @@ public class EyeCandyArtSource extends MuzeiArtSource {
             }
         });
 
-
+        EyeCandyTracker.get(this).sendEvent("muzei", "update");
     }
 }

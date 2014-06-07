@@ -158,6 +158,7 @@ public class MainActivity
         if (EyeCandyPreferences.isFirstRun(this)) {
             mode = MODE_SETUP;
             onFirstRun();
+
         } else {
             mode = MODE_SOURCES;
             checkRefresh();
@@ -193,6 +194,7 @@ public class MainActivity
     }
 
     private void onFirstRun() {
+        sendEvent("ui", "first run");
     }
 
     @Override
@@ -407,7 +409,7 @@ public class MainActivity
 
     private boolean isFragCurrently(final String tag) {
         final Fragment frag = getCurrentFragment();
-        return frag != null && tag.equals(frag.getTag());
+        return frag != null && frag.getTag().startsWith(tag);
     }
 
     @TargetApi(11)
@@ -476,6 +478,7 @@ public class MainActivity
         mLeanback = true;
         getSupportActionBar().hide();
         hideSystemUi();
+        sendEvent("ui", "start leanback");
     }
 
     public void endLeanback() {
@@ -484,6 +487,7 @@ public class MainActivity
         mHandler.removeCallbacks(mLeanbackCallback);
         getSupportActionBar().show();
         showSystemUi();
+        sendEvent("ui", "end leanback");
     }
 
     public void exitLeanback() {
@@ -491,6 +495,7 @@ public class MainActivity
         endLeanback();
         restoreSystemUi();
         slideAd();
+        sendEvent("ui", "exit leanback");
     }
 
     public boolean isLeanback() {
@@ -539,6 +544,8 @@ public class MainActivity
         if (mLeanback)
             exitLeanback();
 
+        Log.d(TAG, "swapFrag(%s, %s, %s)", fragment, tag, addToBackStack);
+
         final FragmentManager frags = getSupportFragmentManager();
         if (!addToBackStack)
             frags.popBackStack();
@@ -550,7 +557,7 @@ public class MainActivity
             ft.addToBackStack(null);
         ft.commit();
 
-        Tracker t = getTracker();
+        Tracker t = EyeCandyTracker.get(this).getTracker();
         t.setScreenName(tag);
         t.send(new HitBuilders.AppViewBuilder().build());
     }
@@ -559,9 +566,9 @@ public class MainActivity
         swapFrag(fragment, tag, false);
     }
 
-    private Fragment getFrag(final String tag, Object... args) {
+    private Fragment getFrag(final String tag) {
         final FragmentManager fm = getSupportFragmentManager();
-        return fm.findFragmentByTag(String.format(tag, args));
+        return fm.findFragmentByTag(tag);
     }
 
     private void onShowRandom() {
@@ -574,12 +581,15 @@ public class MainActivity
 
 
     public void showImage(final Query query, final int position, final Subreddit subreddit,  boolean addToBackStack) {
-        Fragment frag = getFrag(FRAG_VIEWER, query.toSql().hashCode());
-        if (frag == null)
-            frag = ViewerFragment.newInstance(query, position, subreddit);
+
         final String tag = subreddit != null ? FRAG_VIEWER + "-" + subreddit.getSubreddit() : FRAG_VIEWER;
 
+        Fragment frag = getFrag(tag);
+        if (frag == null)
+            frag = ViewerFragment.newInstance(query, position, subreddit);
+
         swapFrag(frag, tag, addToBackStack);
+        sendEvent("ui", "show viewer", subreddit != null ? subreddit.getSubreddit() : null);
     }
 
     private void onShowSetup() {
@@ -614,13 +624,15 @@ public class MainActivity
     }
 
     public void showGallery(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
-        Fragment frag = getFrag(FRAG_GALLERY, query != null ? query.toSql().hashCode() : 0);
+        final String tag = subreddit != null ? FRAG_GALLERY + "-" + subreddit.getSubreddit() : FRAG_GALLERY;
+
+        Fragment frag = getFrag(tag);
         if (frag == null) {
             frag = GalleryFragment.newInstance(query, subreddit);
         }
-        final String tag = subreddit != null ? FRAG_GALLERY + "-" + subreddit.getSubreddit() : FRAG_GALLERY;
 
         swapFrag(frag, tag, addToBackStack);
+        sendEvent("ui", "show gallery", subreddit != null ? subreddit.getSubreddit() : null);
     }
 
     public void showGallery( final Query query, final Subreddit subreddit) {
@@ -637,13 +649,14 @@ public class MainActivity
     }
 
     public void showFeed(final Query query, final Subreddit subreddit, final boolean addToBackStack) {
-        Fragment frag = getFrag(FRAG_FEED, query != null ? query.toSql().hashCode() : 0);
+        final String tag = subreddit != null ? FRAG_FEED + "-" + subreddit.getSubreddit() : FRAG_FEED;
+        Fragment frag = getFrag(tag);
         if (frag == null) {
             frag = FeedFragment.newInstance(query, subreddit);
         }
 
-        final String tag = subreddit != null ? FRAG_FEED + "-" + subreddit.getSubreddit() : FRAG_FEED;
         swapFrag(frag, tag, addToBackStack);
+        sendEvent("ui", "show feed", subreddit != null ? subreddit.getSubreddit() : null);
     }
 
     public void showFeed(final Subreddit subreddit) {
@@ -848,26 +861,12 @@ public class MainActivity
         }
     }
 
-    public synchronized Tracker getTracker() {
-
-        if (mTracker == null) {
-            GoogleAnalytics analytics = GoogleAnalytics.getInstance(this);
-            mTracker = analytics.newTracker(R.xml.ga);
-        }
-
-        return mTracker;
-    }
 
     public void sendEvent(final String category, final String action, final String label) {
-        final Tracker t = getTracker();
-        t.send(new HitBuilders.EventBuilder()
-                .setCategory(category)
-                .setAction(action)
-                .setLabel(label)
-                .build());
+        EyeCandyTracker.get(this).sendEvent(category, action, label);
     }
 
-    private void sendEvent(final String category, final String action) {
+    public void sendEvent(final String category, final String action) {
         sendEvent(category, action, null);
     }
 

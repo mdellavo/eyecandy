@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.google.gson.Gson;
 import com.squareup.okhttp.OkHttpClient;
 
@@ -112,6 +114,8 @@ public class ScrapeService extends IntentService {
 
         final long t2 = System.currentTimeMillis();
         Log.d(TAG, "Scrape of %s complete (took %sms)", subreddit.getSubreddit(), t2-t1);
+
+        EyeCandyTracker.get(this).sendEvent("scraper", "scrape", subreddit.getSubreddit());
     }
 
     private List<Subreddit> getExpiredSubreddits(final long age) {
@@ -176,9 +180,9 @@ public class ScrapeService extends IntentService {
             refreshSubreddit(subreddit);
             scrapeSubreddit(this, subreddit);
         }
+
+        EyeCandyTracker.get(this).sendEvent("scraper", "scrape all");
     }
-
-
 
     abstract class ScrapeTask<T> implements Runnable {
 

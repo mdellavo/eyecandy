@@ -22,6 +22,7 @@ public class EyeCandyViewerDream extends DreamService {
     public void onDreamingStarted() {
         super.onDreamingStarted();
         setContentView(R.layout.viewer_dream);
+        EyeCandyTracker.get(this).sendEvent("dream", "viewer dream");
     }
 
     @Override

@@ -73,6 +73,10 @@ public class ViewerFragment
         boolean onLeanbackTouch(MotionEvent ev);
         void openImage(Image image);
         void castImage(Image image);
+
+        void sendEvent(String category, String action);
+
+        void sendEvent(String category, String actio, String label);
     }
 
     private static final String TAG = Log.buildTag(ViewerFragment.class);
@@ -392,6 +396,7 @@ public class ViewerFragment
                     if (subreddit != null) {
                         Log.d(TAG, "scraping more from %s", subreddit.getSubreddit());
                         ScrapeService.scrapeSubreddit(getActivity(), subreddit);
+                        mListener.sendEvent("ui", "scrape more", subreddit.getSubreddit());
                     }
                 }
             }
@@ -442,11 +447,13 @@ public class ViewerFragment
         Log.d(TAG, "scheduling flip");
         mHandler.removeCallbacks(mFlipCallback);
         mHandler.postDelayed(mFlipCallback, FLIP_DELAY);
+        mListener.sendEvent("ui", "start flipping");
     }
     
     private void stopFlipping() {
         Log.d(TAG, "stopping flip");
         mHandler.removeCallbacks(mFlipCallback);
+        mListener.sendEvent("ui", "stop flipping");
     }
 
     private void flipImage() {
@@ -456,6 +463,8 @@ public class ViewerFragment
         final Image image = getImage(pos);
         mListener.castImage(image);
         mPager.setCurrentItem(pos, true);
+
+        mListener.sendEvent("ui", "flip image");
     }
 
     private Runnable mFlipCallback = new Runnable() {
@@ -491,6 +500,7 @@ public class ViewerFragment
             flipImage();
         }
 
+        mListener.sendEvent("ui", "viewer image load error");
     }
 
     static class Holder {

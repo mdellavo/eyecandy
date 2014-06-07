@@ -55,6 +55,8 @@ public class EyeCandyDream extends DreamService {
         registerReceiver(mBroadcastReceiver, filter);
 
         mBurnsView.startAnimation();
+
+        EyeCandyTracker.get(this).sendEvent("dream", "eyecandy dream");
     }
 
     @Override

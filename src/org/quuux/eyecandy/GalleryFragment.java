@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.media.effect.EffectUpdateListener;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.Display;
@@ -64,6 +65,10 @@ public class GalleryFragment
         void castStartFlipping(Query query, int delay);
         void castStopFlipping();
         void setSelectedNavigationItemSilent(int modeGallery);
+
+        void sendEvent(String category, String action);
+
+        void sendEvent(String category, String action, String label);
     }
 
     public static final int THUMB_SIZE = 100;
@@ -534,6 +539,8 @@ public class GalleryFragment
                 mCurrentAnimator = set;
             }
         });
+
+        mListener.sendEvent("ui", "zoom");
     }
 
     @Override
@@ -642,6 +649,7 @@ public class GalleryFragment
                     mProgressBar.setVisibility(View.VISIBLE);
                     fadeIn(mProgressBar);
                     ScrapeService.scrapeSubreddit(getContext(), subreddit);
+                    mListener.sendEvent("ui", "scrape more", subreddit.getSubreddit());
                 }
             }
 
