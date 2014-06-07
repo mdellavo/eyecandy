@@ -63,6 +63,7 @@ public class GalleryFragment
         void castImage(Image image);
         void castStartFlipping(Query query, int delay);
         void castStopFlipping();
+        void setSelectedNavigationItemSilent(int modeGallery);
     }
 
     public static final int THUMB_SIZE = 100;
@@ -184,8 +185,7 @@ public class GalleryFragment
         final IntentFilter filter = new IntentFilter();
         filter.addAction(ScrapeService.ACTION_SCRAPE_COMPLETE);
         act.registerReceiver(mBroadcastReceiver, filter);
-
-        ((MainActivity)act).setSelectedNavigationItemSilent(MainActivity.MODE_GALLERY);
+        mListener.setSelectedNavigationItemSilent(MainActivity.MODE_GALLERY);
 
     }
 

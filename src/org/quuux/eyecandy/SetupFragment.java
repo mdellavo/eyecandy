@@ -33,6 +33,8 @@ import java.util.List;
 public class SetupFragment extends ListFragment implements View.OnClickListener {
     interface Listener {
         void onSetupComplete();
+
+        void sendEvent(String category, String action);
     }
 
     private Listener mListener;
@@ -138,6 +140,7 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
 
         if (l.isItemChecked(position)) {
             Subreddit.add(getActivity(), item, null);
+            mListener.sendEvent("subreddit", item);
         } else {
             Subreddit.remove(getActivity(), item, null);
         }
@@ -158,9 +161,11 @@ public class SetupFragment extends ListFragment implements View.OnClickListener 
                 mAdapter.add(result.getSubreddit());
                 mAdapter.notifyDataSetChanged();
                 getListView().setItemChecked(mAdapter.getPosition(result.getSubreddit()), true);
+                mListener.sendEvent("subreddit", result.getSubreddit());
             }
         });
         frag.show(getActivity().getSupportFragmentManager(), "add-subreddit");
+        mListener.sendEvent("ui", "add subreddit");
     }
 
     public static SetupFragment newInstance() {

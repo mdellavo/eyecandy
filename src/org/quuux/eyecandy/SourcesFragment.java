@@ -51,6 +51,8 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         void showImage(Subreddit subreddit);
         void showGallery(Subreddit subreddit);
         void showFeed(Subreddit subreddit);
+        void sendEvent(String category, String action);
+        void sendEvent(String category, String action, String label);
     }
 
     private Listener mListener;
@@ -206,12 +208,12 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         switch(item.getItemId()) {
 
             case R.id.slideshow:
-                mListener.showImage(subreddit);
+                showSlideShow(subreddit);
                 rv = true;
                 break;
 
             case R.id.gallery:
-                mListener.showGallery(subreddit);
+                showGallery(subreddit);
                 rv = true;
                 break;
 
@@ -231,6 +233,14 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         }
 
         return rv;
+    }
+
+    private void showSlideShow(final Subreddit subreddit) {
+        mListener.showImage(subreddit);
+    }
+
+    private void showGallery(final Subreddit subreddit) {
+        mListener.showGallery(subreddit);
     }
 
     @Override
@@ -265,14 +275,6 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
     }
 
-    private void openSubreddit(final Subreddit subreddit) {
-        final Context context = getActivity();
-        if (context == null)
-            return;
-
-        mListener.showGallery(subreddit);
-    }
-
     private void showAddDialog() {
         final AddSubredditDialog frag = new AddSubredditDialog();
         frag.setListener(new FetchListener<Subreddit>() {
@@ -280,9 +282,11 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             public void onResult(final Subreddit result) {
                 if (mAdapter.getPositionForItem(result) == -1)
                     mAdapter.add(result);
+                mListener.sendEvent("subreddit", result.getSubreddit());
             }
         });
         frag.show(getActivity().getSupportFragmentManager(), "add-subreddit");
+        mListener.sendEvent("ui", "add subreddit");
     }
 
     private void refreshSubreddit(final Subreddit subreddit) {
@@ -291,6 +295,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
             return;
 
         Subreddit.refresh(context, subreddit);
+        mListener.sendEvent("ui", "refresh subreddit", subreddit.getSubreddit());
     }
 
     private void deleteSubreddit(final Subreddit subreddit) {
@@ -302,6 +307,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         mAdapter.remove(subreddit);
         Subreddit.remove(context, subreddit.getSubreddit(), null);
         mAdapter.notifyDataSetChanged();
+        mListener.sendEvent("ui", "delete subreddit", subreddit.getSubreddit());
     }
 
     static class Adapter extends QueryAdapter<Subreddit> {
@@ -384,7 +390,6 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
 
             mListener = (Listener) activity;
         }
-
         @Override
         public Dialog onCreateDialog(final Bundle savedInstanceState) {
 
@@ -404,7 +409,7 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
                     switch(which) {
 
                         case MODE_SLIDESHOW:
-                             mListener.showImage(subreddit);
+                            mListener.showImage(subreddit);
                             break;
 
                         case MODE_GALLERY:

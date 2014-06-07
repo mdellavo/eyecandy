@@ -31,14 +31,6 @@ public class EyeCandyVolley extends Volley {
 
             final File cacheDir = new File(context.getExternalCacheDir(), "volley");
 
-            String userAgent = "volley/0";
-            try {
-                String packageName = context.getPackageName();
-                PackageInfo info = context.getPackageManager().getPackageInfo(packageName, 0);
-                userAgent = packageName + "/" + info.versionCode;
-            } catch (PackageManager.NameNotFoundException e) {
-            }
-
             sClient = new OkHttpClient();
             HttpStack stack = new OkHttpStack(context, sClient);
             Network network = new BasicNetwork(stack);

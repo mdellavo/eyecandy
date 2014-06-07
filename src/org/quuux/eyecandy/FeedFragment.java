@@ -49,6 +49,13 @@ import org.quuux.orm.util.QueryAdapter;
 import pl.droidsonroids.gif.GifDrawable;
 
 public class FeedFragment extends GalleryFragment {
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mListener.setSelectedNavigationItemSilent(MainActivity.MODE_FEED);
+    }
+
     @Override
     public int getLayout() {
         return R.layout.feed;

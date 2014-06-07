@@ -87,21 +87,22 @@ public class MainActivity
     private static final String ACTION_PURCHASE = "org.quuux.eyecandy.action.PURCHASE";
 
     private static final String FRAG_RANDOM = "random";
-    private static final String FRAG_GALLERY = "gallery-%s";
-    private static final String FRAG_VIEWER = "viewer-%s";
-    private static final String FRAG_SOURCES = "subreddits";
+    private static final String FRAG_GALLERY = "gallery";
+    private static final String FRAG_VIEWER = "viewer";
+    private static final String FRAG_SOURCES = "sources";
     private static final String FRAG_FEED = "feed";
     private static final String FRAG_SETUP = "setup";
 
     public static final int MODE_SLIDE_SHOW = 0;
     public static final int MODE_SOURCES = 1;
     public static final int MODE_GALLERY = 2;
-    private static final int MODE_FEED = 3;
-    private static final int MODE_SETUP = 4;
+    public static final int MODE_FEED = 3;
+    public static final int MODE_SETUP = 4;
 
     public static final int MODE_BURNS = -1;
     private static final String SKU_UNLOCK = "unlock";
     private static final int FLIP_DELAY = 15 * 1000;
+    private static final boolean CAST_ENABLED = false;
 
     final private Handler mHandler = new Handler();
 
@@ -153,7 +154,6 @@ public class MainActivity
         spinnerAdapter.setDropDownViewResource(R.layout.support_simple_spinner_dropdown_item);
         actionBar.setListNavigationCallbacks(spinnerAdapter, this);
 
-
         int mode;
         if (EyeCandyPreferences.isFirstRun(this)) {
             mode = MODE_SETUP;
@@ -179,12 +179,12 @@ public class MainActivity
         mPurchases = EyeCandyPreferences.getPurchases(this);
         onPurchasesUpdated();
 
-        mMediaRouter = MediaRouter.getInstance(getApplicationContext());
-        mMediaRouteSelector = new MediaRouteSelector.Builder()
-                .addControlCategory(CastMediaControlIntent.categoryForCast(getString(R.string.cast_application_id)))
-                .build();
-
-
+        if (CAST_ENABLED) {
+            mMediaRouter = MediaRouter.getInstance(getApplicationContext());
+            mMediaRouteSelector = new MediaRouteSelector.Builder()
+                    .addControlCategory(CastMediaControlIntent.categoryForCast(getString(R.string.cast_application_id)))
+                    .build();
+        }
 
     }
 
@@ -227,9 +227,10 @@ public class MainActivity
 
         checkPlayServices();
 
-        mMediaRouter.addCallback(mMediaRouteSelector, mMediaRouterCallback,
-                MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
-
+        if (CAST_ENABLED) {
+            mMediaRouter.addCallback(mMediaRouteSelector, mMediaRouterCallback,
+                    MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+        }
 
     }
 
@@ -243,11 +244,14 @@ public class MainActivity
 
     @Override
     protected void onPause() {
-        mMediaRouter.removeCallback(mMediaRouterCallback);
+        if (CAST_ENABLED)
+            mMediaRouter.removeCallback(mMediaRouterCallback);
         super.onPause();
         unregisterReceiver(mBroadcastReceiver);
         mAdView.pause();
-        castTeardown();
+
+        if (CAST_ENABLED)
+            castTeardown();
     }
 
     @Override
@@ -347,6 +351,7 @@ public class MainActivity
         mPurchases.add(SKU_UNLOCK);
         EyeCandyPreferences.setPurchases(this, mPurchases);
         onPurchasesUpdated();
+        sendEvent("ui", "purchase complete");
     }
 
     @Override
@@ -546,7 +551,7 @@ public class MainActivity
         ft.commit();
 
         Tracker t = getTracker();
-        t.setScreenName(fragment.getClass().getName());
+        t.setScreenName(tag);
         t.send(new HitBuilders.AppViewBuilder().build());
     }
 
@@ -564,6 +569,7 @@ public class MainActivity
         if (frag == null)
             frag = RandomFragment.newInstance();
         swapFrag(frag, FRAG_RANDOM, false);
+        sendEvent("ui", "show random");
     }
 
 
@@ -571,7 +577,9 @@ public class MainActivity
         Fragment frag = getFrag(FRAG_VIEWER, query.toSql().hashCode());
         if (frag == null)
             frag = ViewerFragment.newInstance(query, position, subreddit);
-        swapFrag(frag, FRAG_VIEWER, addToBackStack);
+        final String tag = subreddit != null ? FRAG_VIEWER + "-" + subreddit.getSubreddit() : FRAG_VIEWER;
+
+        swapFrag(frag, tag, addToBackStack);
     }
 
     private void onShowSetup() {
@@ -579,6 +587,7 @@ public class MainActivity
         if (frag == null)
             frag = SetupFragment.newInstance();
         swapFrag(frag, FRAG_SETUP, false);
+        sendEvent("ui", "show setup");
     }
 
     public void showImage(final Query query, final int position, final Subreddit subreddit) {
@@ -609,7 +618,9 @@ public class MainActivity
         if (frag == null) {
             frag = GalleryFragment.newInstance(query, subreddit);
         }
-        swapFrag(frag, FRAG_GALLERY, addToBackStack);
+        final String tag = subreddit != null ? FRAG_GALLERY + "-" + subreddit.getSubreddit() : FRAG_GALLERY;
+
+        swapFrag(frag, tag, addToBackStack);
     }
 
     public void showGallery( final Query query, final Subreddit subreddit) {
@@ -630,7 +641,9 @@ public class MainActivity
         if (frag == null) {
             frag = FeedFragment.newInstance(query, subreddit);
         }
-        swapFrag(frag, FRAG_GALLERY, addToBackStack);
+
+        final String tag = subreddit != null ? FRAG_FEED + "-" + subreddit.getSubreddit() : FRAG_FEED;
+        swapFrag(frag, tag, addToBackStack);
     }
 
     public void showFeed(final Subreddit subreddit) {
@@ -647,6 +660,8 @@ public class MainActivity
         if (frag == null)
             frag = SourcesFragment.newInstance();
         swapFrag(frag, FRAG_SOURCES, false);
+
+        sendEvent("ui", "show sources");
     }
 
     public void setSelectedNavigationItemSilent(final int pos) {
@@ -660,6 +675,7 @@ public class MainActivity
     public void openImage(final Image image) {
         final OpenImageDialog dialog = OpenImageDialog.newInstance(image);
         dialog.show(getSupportFragmentManager(), String.format("open-image-%s", image.getId()));
+        sendEvent("ui", "open image");
     }
 
     private void onPurchaseResult(final Set<String> purchases) {
@@ -718,6 +734,9 @@ public class MainActivity
                 final NagDialog dialog = NagDialog.newInstance();
                 dialog.show(getSupportFragmentManager(), "nag");
             }
+
+            sendEvent("ui", "show nag");
+
             sNagShown = true;
         }
     }
@@ -732,12 +751,15 @@ public class MainActivity
             final WebViewDialog dialog = WebViewDialog.newInstance(R.string.about, "file:///android_asset/about.html");
             dialog.show(getSupportFragmentManager(), "about");
         }
+
+        sendEvent("ui", "show about");
     }
 
     @Override
     public void onSetupComplete() {
         EyeCandyPreferences.markFirstRun(this);
         onShowSources();
+        sendEvent("ui", "setup complete");
     }
 
     static class ImageOpenerAdapter extends ArrayAdapter<ResolveInfo> {
@@ -836,6 +858,19 @@ public class MainActivity
         return mTracker;
     }
 
+    public void sendEvent(final String category, final String action, final String label) {
+        final Tracker t = getTracker();
+        t.send(new HitBuilders.EventBuilder()
+                .setCategory(category)
+                .setAction(action)
+                .setLabel(label)
+                .build());
+    }
+
+    private void sendEvent(final String category, final String action) {
+        sendEvent(category, action, null);
+    }
+
     public static class OpenImageDialog extends DialogFragment {
         public OpenImageDialog() {
             super();
@@ -932,6 +967,8 @@ public class MainActivity
         } catch (final IntentSender.SendIntentException e) {
             Log.e(TAG, "error starting purchase: %s", e);
         }
+
+        sendEvent("ui", "start purchase");
     }
 
     final Runnable mTapCallback = new Runnable() {
@@ -963,30 +1000,35 @@ public class MainActivity
         public void onAdClosed() {
             super.onAdClosed();
             Log.d(TAG, "ad closed");
+            sendEvent("ui", "ad closed");
         }
 
         @Override
         public void onAdFailedToLoad(final int errorCode) {
             super.onAdFailedToLoad(errorCode);
             Log.d(TAG, "ad failed to load: %s", errorCode);
+            sendEvent("ui", "ad failed to load");
         }
 
         @Override
         public void onAdLeftApplication() {
             super.onAdLeftApplication();
             Log.d(TAG, "ad left application");
+            sendEvent("ui", "ad left application");
         }
 
         @Override
         public void onAdOpened() {
             super.onAdOpened();
             Log.d(TAG, "ad opened");
+            sendEvent("ui", "ad opened");
         }
 
         @Override
         public void onAdLoaded() {
             super.onAdLoaded();
             Log.d(TAG, "ad loaded");
+            sendEvent("ui", "ad loaded");
         }
     };
 
