@@ -25,6 +25,13 @@ public class Image implements Entity, Serializable {
         FAILED
     };
 
+    public enum Thumbnail {
+        SMALL,
+        MEDIUM,
+        LARGE,
+        HUGE
+    };
+
     public Image() {}
 
     @Column(primaryKey = true)
@@ -69,21 +76,6 @@ public class Image implements Entity, Serializable {
     @Column()
     private String subreddit;
 
-    protected Image(final Subreddit subreddit, final String url, final String thumbnaillUrl, final String title, final long created, final boolean animated, final Status status, final int timesShown) {
-        this.subreddit = subreddit.getSubreddit();
-        this.url = url;
-        this.title = title;
-        this.created = created;
-        this.animated = animated;
-        this.status = status;
-        this.timesShown = timesShown;
-        this.thumbnailUrl = thumbnaillUrl;
-    }
-
-    public static Image fromImgur(final Subreddit subreddit, final String url, final String thumbnailUrl, final String title, final long created, final boolean animated) {
-        return new Image(subreddit, url, thumbnailUrl, title, created, animated, Status.NOT_FETCHED, 0);
-    }
-
     @Override
     public int hashCode() {
         return url.hashCode();
@@ -115,6 +107,41 @@ public class Image implements Entity, Serializable {
         return !TextUtils.isEmpty(thumbnailUrl) ? thumbnailUrl : null;
     }
 
+    public boolean isImgur() {
+        return getUrl().startsWith("http://i.imgur.com");
+    }
+
+    public String getImgurThumbnailUrl(Thumbnail thumbnail) {
+
+        if (!isImgur())
+            throw new IllegalArgumentException("not an imgur url");
+
+        String ext = null;
+
+        switch (thumbnail) {
+            case SMALL:
+                ext = "t";
+                break;
+
+            case MEDIUM:
+                ext = "m";
+                break;
+
+            case LARGE:
+                ext = "l";
+                break;
+
+            case HUGE:
+                ext = "h";
+                break;
+
+            default:
+                throw new IllegalArgumentException("unknown thumbnail: " + thumbnail);
+        }
+
+        return getThumbnailUrl().replace("t.", ext + ".");
+    }
+
     public String getTitle() {
         return title.replaceAll("\\[[^\\]]+\\]", "");
     }
@@ -140,5 +167,56 @@ public class Image implements Entity, Serializable {
         return created;
     }
 
+    public void setUrl(final String url) {
+        this.url = url;
+    }
+
+    public void setCreated(final long created) {
+        this.created = created;
+    }
+
+    public void setTitle(final String title) {
+        this.title = title;
+    }
+
+    public void setStatus(final Status status) {
+        this.status = status;
+    }
+
+    public void setTimesShown(final int timesShown) {
+        this.timesShown = timesShown;
+    }
+
+    public void setLastShown(final long lastShown) {
+        this.lastShown = lastShown;
+    }
+
+    public void setWidth(final int width) {
+        this.width = width;
+    }
+
+    public void setHeight(final int height) {
+        this.height = height;
+    }
+
+    public void setSize(final int size) {
+        this.size = size;
+    }
+
+    public void setMimeType(final String mimeType) {
+        this.mimeType = mimeType;
+    }
+
+    public void setAnimated(final boolean animated) {
+        this.animated = animated;
+    }
+
+    public void setThumbnailUrl(final String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public void setSubreddit(final String subreddit) {
+        this.subreddit = subreddit;
+    }
 }
 

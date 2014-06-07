@@ -340,7 +340,16 @@ public class ScrapeService extends IntentService {
                 final boolean isImgur = i.data.url.contains("imgur.com");
                 if (isImage && !isImgur) {
                     final RedditItem item = i.data;
-                    final Image img = Image.fromImgur(mSubreddit, item.url, item.thumbnail, item.title, item.created, false); // FIXME
+
+                    final Image img = new Image();
+                    img.setSubreddit(mSubreddit.getSubreddit());
+                    img.setUrl(item.url);
+                    img.setThumbnailUrl(item.thumbnail);
+                    img.setTitle(item.title);
+                    img.setCreated(item.created);
+                    img.setAnimated(false); // FIXME
+                    img.setStatus(Image.Status.NOT_FETCHED);
+
                     images.add(img);
                 }
             }
@@ -386,7 +395,17 @@ public class ScrapeService extends IntentService {
         List<Entity> findImages(final ImgurImageList response) {
             final List<Entity> images = new ArrayList<Entity>();
             for (final ImgurImage i : response.data) {
-                final Image img = Image.fromImgur(mSubreddit, i.getUrl(), i.getThumbnail(), i.title, i.created, i.isAnimated());
+
+                final Image img = new Image();
+                img.setSubreddit(mSubreddit.getSubreddit());
+                img.setUrl(i.getUrl());
+                img.setThumbnailUrl(i.getThumbnail());
+                img.setTitle(i.title);
+                img.setCreated(i.created);
+                img.setAnimated(i.isAnimated());
+                img.setStatus(Image.Status.NOT_FETCHED);
+                img.setCreated(i.created);
+
                 images.add(img);
             }
             return images;
