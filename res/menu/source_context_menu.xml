@@ -15,6 +15,11 @@
         />
 
     <item
+        android:id="@+id/feed"
+        android:title="@string/view_as_feed"
+        />
+
+    <item
         android:id="@+id/refresh"
         android:title="@string/refresh"
         />

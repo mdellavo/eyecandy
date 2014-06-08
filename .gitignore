@@ -11,3 +11,4 @@ build
 builds
 *.keystore
 *.iml
+*.apk

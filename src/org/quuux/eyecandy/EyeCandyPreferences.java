@@ -4,16 +4,24 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.os.Bundle;
+import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-public class EyeCandyPreferences {
+public class EyeCandyPreferences extends PreferenceActivity {
 
     private static final String PREF_LAST_NAV_MODE = "last-nav-mode";
     private static final String PREFS_IS_FLIPPING = "is-flipping";
+
+    @Override
+    protected void onCreate(final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        addPreferencesFromResource(R.xml.preferences);
+    }
 
     static SharedPreferences get(final Context context) {
        return PreferenceManager.getDefaultSharedPreferences(context);

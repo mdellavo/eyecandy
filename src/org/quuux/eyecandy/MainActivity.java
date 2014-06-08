@@ -331,6 +331,12 @@ public class MainActivity
 
         boolean rv;
         switch (item.getItemId()) {
+
+            case R.id.settings:
+                showSettings();
+                rv = true;
+                break;
+
             case R.id.unlock:
                 showNag(true);
                 rv = true;
@@ -347,6 +353,11 @@ public class MainActivity
         }
 
         return rv;
+    }
+
+    private void showSettings() {
+        final Intent intent = new Intent(this, EyeCandyPreferences.class);
+        startActivity(intent);
     }
 
     private void onPurchaseComplete() {
@@ -578,7 +589,6 @@ public class MainActivity
         swapFrag(frag, FRAG_RANDOM, false);
         sendEvent("ui", "show random");
     }
-
 
     public void showImage(final Query query, final int position, final Subreddit subreddit,  boolean addToBackStack) {
 

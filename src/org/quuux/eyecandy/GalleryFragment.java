@@ -69,6 +69,10 @@ public class GalleryFragment
         void sendEvent(String category, String action);
 
         void sendEvent(String category, String action, String label);
+
+        void startLeanback();
+
+        void endLeanback();
     }
 
     public static final int THUMB_SIZE = 100;
@@ -560,6 +564,7 @@ public class GalleryFragment
         ViewHelper.setAlpha(mProgressBar, 0);
         mProgressBar.setVisibility(View.VISIBLE);
         fadeIn(mProgressBar);
+        mListener.startLeanback();
     }
 
     private void endZoom(final View v) {
@@ -570,6 +575,7 @@ public class GalleryFragment
         mCurrentAnimator = null;
         mZoomed = false;
         getActivity().supportInvalidateOptionsMenu();
+        mListener.endLeanback();
     }
 
     public static class Holder {

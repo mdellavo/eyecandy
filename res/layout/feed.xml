@@ -39,7 +39,7 @@
         android:layout_alignParentTop="true"
         android:paddingTop="?attr/actionBarSize"
         android:scaleType="fitCenter"
-        android:padding="25dp"
+        android:padding="2dp"
         android:id="@+id/zoomed_image"/>
 
     <ProgressBar

@@ -217,6 +217,11 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
                 rv = true;
                 break;
 
+            case R.id.feed:
+                showFeed(subreddit);
+                rv = true;
+                break;
+
             case R.id.refresh:
                 refreshSubreddit(subreddit);
                 rv = true;
@@ -233,6 +238,10 @@ public class SourcesFragment extends Fragment implements AdapterView.OnItemClick
         }
 
         return rv;
+    }
+
+    private void showFeed(final Subreddit subreddit) {
+        mListener.showFeed(subreddit);
     }
 
     private void showSlideShow(final Subreddit subreddit) {
