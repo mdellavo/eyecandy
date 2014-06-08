@@ -20,6 +20,7 @@ public class EyeCandyPreferences extends PreferenceActivity {
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.preferences);
         addPreferencesFromResource(R.xml.preferences);
     }
 

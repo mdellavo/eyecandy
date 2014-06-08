@@ -155,6 +155,7 @@ public class ScrapeService extends IntentService {
         );
         conn.commit();
 
+        // FIXME can we move this to a soft delete and update just restores
         try {
             mSession.query(Image.class).filter("subreddit=?", new String[] {subreddit.getSubreddit()}).delete(null).get();
         } catch (Exception e) {

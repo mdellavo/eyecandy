@@ -1,5 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+                  xmlns:switchpref="http://schemas.android.com/apk/res-auto" >
+
+    <PreferenceCategory
+        android:title="@string/pref_viewer_title"
+        android:key="pref_key_slide_show_settings">
+
+        <EditTextPreference
+            android:inputType="number"
+            android:defaultValue="15"
+            android:key="pref_flip_delay"
+            android:dialogMessage="@string/pref_flip_delay_mesg"
+            android:summary="@string/pref_flip_delay_summ"
+            android:max="300"
+            android:title="@string/pref_flip_delay"
+            android:dialogTitle="@string/pref_flip_delay"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="@string/pref_premium_title"
+        android:key="pref_key_premium_settings">
+
+        <org.jraf.android.backport.switchwidget.SwitchPreference
+            android:key="pref_enable_cast"
+            android:title="@string/enable_cast"
+            android:summary="@string/pref_enable_cast_summ"
+            switchpref:switchTextOff="@string/off"
+            switchpref:switchTextOn="@string/on"/>
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

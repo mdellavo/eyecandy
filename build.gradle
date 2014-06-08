@@ -18,6 +18,9 @@ dependencies {
 
     repositories {
         mavenCentral()
+        maven {
+            url "http://JRAF.org/static/maven/2"
+        }
     }
 
     compile fileTree(dir: 'libs', include: '*.jar')
@@ -33,6 +36,7 @@ dependencies {
     compile 'com.google.code.gson:gson:+'
     compile 'com.google.android.apps.muzei:muzei-api:+'
     compile 'pl.droidsonroids.gif:android-gif-drawable:1.0.+'
+    compile 'org.jraf:android-switch-backport:1.3.1'
 
     compile project(':orm-android')
 
