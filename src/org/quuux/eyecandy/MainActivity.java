@@ -1301,7 +1301,6 @@ public class MainActivity
             return;
 
         if (!mCasting) {
-            Log.d(TAG, "Not casting image %s", image);
             return;
         }
 
