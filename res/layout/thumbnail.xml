@@ -3,8 +3,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
              android:layout_gravity="center"
              android:gravity="center"
-             android:paddingLeft="5dp"
-             android:paddingRight="5dp"
+             android:background="@drawable/shadow"
              android:layout_width="@dimen/source_thumbnail"
              android:layout_height="@dimen/source_thumbnail">
 
@@ -13,7 +12,7 @@
         android:layout_gravity="center"
         android:layout_width="@dimen/source_thumbnail"
         android:layout_height="@dimen/source_thumbnail"
-        android:layout_centerInParent="true"
+        android:scaleType="fitCenter"
         />
 
     <ImageView

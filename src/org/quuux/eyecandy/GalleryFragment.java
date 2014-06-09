@@ -579,6 +579,7 @@ public class GalleryFragment
     }
 
     public static class Holder {
+        TextView summary;
         ImageView thumbnail;
         View animated;
         Image image;
@@ -606,6 +607,7 @@ public class GalleryFragment
             final Holder holder = new Holder();
             holder.thumbnail = (ImageView) v.findViewById(R.id.thumbnail);
             holder.animated = v.findViewById(R.id.animated);
+            holder.summary = (TextView) v.findViewById(R.id.summary);
             v.setTag(holder);
 
             return v;

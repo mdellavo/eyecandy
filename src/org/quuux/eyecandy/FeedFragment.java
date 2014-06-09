@@ -10,6 +10,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.text.Html;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -94,6 +95,11 @@ public class FeedFragment extends GalleryFragment {
                 .placeholder(R.drawable.ic_loading)
                 .transform(transformation)
                 .into(tag.thumbnail, tag.callback);
+
+        if (tag.summary != null) {
+            final String summary = String.format("<em>%s</em>", tag.image.getTitle());
+            tag.summary.setText(Html.fromHtml(summary));
+        }
     }
 
     public static FeedFragment newInstance(final Query query, final Subreddit subreddit) {
